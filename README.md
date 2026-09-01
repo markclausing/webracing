@@ -41,10 +41,12 @@ Then open http://localhost:5173/. There is no `npm install`.
 Every key can be changed in the menu. Gamepads need no setting up: the first two
 share with the keyboard players, a third and fourth get seats of their own.
 
-On a phone the car drives itself and the one button is the brake, because
-holding a throttle for two minutes with one thumb while steering with the other
-leaves nothing spare — and what you actually decide, corner by corner, is when to
-come *off* the power. You can hold it yourself instead, from the menu.
+On a phone you hold the throttle and the brake is the smaller button beside it.
+That was the other way round for a while — the car drove itself and braking was
+your only control — and it was a mistake: the brake here takes most of the grip
+with it, which is the whole trick of the game and completely the wrong thing to
+hand somebody who is struggling. Lifting off costs nothing and slows you down.
+The automatic throttle is still there in the menu if you want it.
 
 Steering is the whole bottom-left corner, and it is **relative**: wherever your
 thumb lands is straight ahead, and you steer by moving from there. There is no
@@ -54,12 +56,18 @@ bitmask is what goes over the wire and what makes a lap set on a phone comparabl
 with one set on a keyboard, so the phone presses it for a share of the ticks
 instead of all of them and the car settles at that share.
 
-There is also a **steering aid**, on by default, in two strengths. You say which
-way and it decides how much: a little lock where the corner wants a lot becomes a
-lot, a lot where it wants a little becomes a little, and asking the wrong way
-winds you back towards straight rather than turning the wheel for you. It is
-aimed at the thing that actually makes a phone hard — judging how far to move a
-thumb you cannot feel.
+There is also a **driving aid**, in two strengths, on the stronger one by
+default. You say which way and it decides how much: a little lock where the
+corner wants a lot becomes a lot, a lot where it wants a little becomes a little,
+and asking the wrong way winds you back towards straight rather than turning the
+wheel for you. It also lifts off for a corner you were about to arrive at too
+quickly — lifting, not braking, because braking is the thing that costs grip.
+Both halves are aimed at what actually makes a phone hard: judging how far to
+move a thumb you cannot feel, and how fast is too fast for what is coming.
+
+A phone also starts against EASY opponents. Learning to steer with a thumb and
+racing three quick cars are two problems, and there is no reason to hand somebody
+both at once.
 
 **A hand that is not on the wheel gets nothing**, at any strength, and that part
 is not negotiable. The first version helped hardest when you were asking for
@@ -67,7 +75,8 @@ least, which felt lovely and was an autopilot: measured over 24 races with nobod
 touching the wheel it completed 2.9 laps of 3, finished third of four and set a
 13.18s lap — quicker than the thumb it was meant to be helping. Laps like that
 would have gone on the record board. With a thumb on it, the aid takes falling
-off the road from 4.0 a race to 2.8 and laps completed from 1.6 to 2.6.
+off the road from 4.0 a race to 2.1 and laps completed from 1.6 to 2.7, over 24
+races of a deliberately clumsy driver.
 
 All of this is input, not physics. The aid, the automatic throttle and the
 part-pressed steering all decide *what gets pressed*; the car itself is identical

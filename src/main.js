@@ -12,7 +12,7 @@ import {
 } from './input.js';
 import { isTouchDevice } from './touch.js';
 import { TouchDrive } from './touchdrive.js';
-import { ASSIST, roadDemand } from './assist.js';
+import { ASSIST, easeOff, roadDemand } from './assist.js';
 import { createRace, formatLap, lapMs } from './game/state.js';
 import { step } from './game/sim.js';
 import { TRACKS, loadTrack, trackByKey } from './game/tracks.js';
@@ -115,8 +115,6 @@ if (onTouchDevice) {
   // Only worth offering where there is a thumb to save.
   document.getElementById('throttleRow').classList.remove('hidden');
   document.getElementById('assistRow').classList.remove('hidden');
-  setThrottle(globalThis.localStorage?.getItem('webracing.throttle') !== 'hold');
-  setAssist(globalThis.localStorage?.getItem('webracing.assist') || 'some');
   devices.touch = touch;
 }
 
@@ -281,6 +279,7 @@ function frame(now) {
       // steering comes out as half a turn of lock, and mixed with wherever the
       // road goes if the steering aid is on.
       touch.road = touch.assist ? roadDemand(game.state, game.seat) : 0;
+      touch.ease = easeOff(game.state, game.seat, touch.assist);
       touch.advance();
       game.transport.sample(tick);
       if (!game.transport.ready(tick)) break;
@@ -663,7 +662,7 @@ renderBindings();
 // --- Menu --------------------------------------------------------------------
 
 let mode = '1';
-let difficulty = 'normal';
+let difficulty = globalThis.localStorage?.getItem('webracing.difficulty') || 'normal';
 let trackKey = TRACKS[0].key;
 
 function lapCount() {
@@ -705,12 +704,19 @@ document.querySelectorAll('[data-mode]').forEach((btn) => {
   });
 });
 
-document.querySelectorAll('[data-difficulty]').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    difficulty = btn.dataset.difficulty;
-    document.querySelectorAll('[data-difficulty]').forEach((b) => b.classList.toggle('active', b === btn));
-    renderScores(trackKey, boardTier());
+function setDifficulty(key) {
+  difficulty = key;
+  document.querySelectorAll('[data-difficulty]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.difficulty === key);
   });
+  try {
+    globalThis.localStorage?.setItem('webracing.difficulty', key);
+  } catch { /* private mode */ }
+  renderScores(trackKey, boardTier());
+}
+
+document.querySelectorAll('[data-difficulty]').forEach((btn) => {
+  btn.addEventListener('click', () => setDifficulty(btn.dataset.difficulty));
 });
 
 document.querySelectorAll('[data-sound]').forEach((btn) => {
@@ -897,6 +903,20 @@ addEventListener('pointerdown', startMusicOnFirstGesture);
 addEventListener('keydown', startMusicOnFirstGesture);
 
 showLocalSeats();
+
+// What a phone starts with, once everything the menu needs exists. Kept down
+// here on purpose: called from where the controls are attached, six hundred
+// lines up, setDifficulty assigns to a `let` that has not been declared yet -
+// which is a ReferenceError on every phone and invisible to a suite that never
+// loads the page.
+if (onTouchDevice) {
+  setThrottle(globalThis.localStorage?.getItem('webracing.throttle') === 'auto');
+  setAssist(globalThis.localStorage?.getItem('webracing.assist') || 'lots');
+  // A gentler field to learn against: three NORMAL cars while you are also
+  // learning to steer with a thumb is two problems at once.
+  if (!globalThis.localStorage?.getItem('webracing.difficulty')) setDifficulty('easy');
+}
+
 renderScores(trackKey, boardTier());
 syncScores();
 sizeCanvas();

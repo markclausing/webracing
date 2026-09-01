@@ -15,7 +15,7 @@
  */
 
 import { TOP_SPEED } from './constants.js';
-import { pointAt } from './game/path.js';
+import { bendAhead, pointAt } from './game/path.js';
 
 /** How far up the road it reads, at a crawl and at speed. */
 const LOOK_NEAR = 95;
@@ -58,10 +58,50 @@ export function roadDemand(state, seat) {
 }
 
 /**
+ * Coming off the power for a corner, which is the other half of the aid.
+ *
+ * The brake in this game takes most of the grip with it - that is the whole
+ * trick of the thing, and it is why a stab of it steps the back out. Which makes
+ * it completely the wrong control to hand somebody who is struggling. Lifting
+ * off costs nothing and slows you down, so that is what this does: it works out
+ * how fast the road ahead will actually take, and if you are over it, it lets go
+ * of the throttle you are holding.
+ *
+ * It can only ever slow you down. There is no version of this that makes you
+ * quicker than somebody who lifted at the right moment on a keyboard, which is
+ * what keeps an aided lap honest on the record board.
+ *
+ * At the strongest setting it will use the brake as well, and only when the car
+ * is pointed more or less where it is going - braking mid-slide is how you spin,
+ * and an aid that spun you would be worse than no aid.
+ */
+const LOOK_AHEAD = 165;
+const CORNER_BITE = 0.82;
+const SLIDING = 70;
+
+export function easeOff(state, seat, strength) {
+  const car = state?.cars?.[seat];
+  if (!strength || !car || car.mode !== 'run' || !state.track) return { lift: false, brake: false };
+  const { path } = state.track;
+  const speed = Math.sqrt(car.vx * car.vx + car.vy * car.vy);
+  const bend = bendAhead(path, car.along + 20, LOOK_AHEAD);
+  const takes = TOP_SPEED * state.track.handling.top * (1 - bend * CORNER_BITE);
+  const over = speed / Math.max(60, takes);
+  // Some help lifts late and only for the worst of it; lots lifts early. The
+  // margin on top matters: without it the strongest setting lifted on a straight,
+  // because a table with a handling penalty makes the speed the road "takes"
+  // fractionally lower than the speed the car will actually reach.
+  const lift = over > 1.06 + (1 - strength) * 0.3;
+  const brake = strength > 0.7 && over > 1.3 && Math.abs(car.slide) < SLIDING;
+  return { lift, brake };
+}
+
+/**
  * How much of that gets mixed in.
  *
  * Off is the keyboard's deal: what you press is what the car does. The other two
- * let the road decide *how much* lock, while you decide which way - see blend().
+ * let the road decide *how much* lock while you decide which way - see blend() -
+ * and take their foot off for a corner you were going to arrive at too quickly.
  */
 export const ASSIST = {
   off: { key: 'off', label: 'Off', strength: 0 },

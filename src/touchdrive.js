@@ -94,6 +94,8 @@ export class TouchDrive extends TouchControls {
      */
     this.assist = 0;
     this.road = 0;
+    /** And whether it wants the power off for what is coming. */
+    this.ease = { lift: false, brake: false };
   }
 
   /** @param {{root, stick, knob, gas, brake}} el */
@@ -211,6 +213,11 @@ export class TouchDrive extends TouchControls {
     // Foot down unless you have asked for the brake. Local, like the duty cycle
     // above: the simulation is handed an ordinary mask and never knows.
     if (this.auto && !(pedals & BTN.SWITCH)) pedals |= BTN.FIRE;
+    // And off again for a corner you were going to arrive at too fast. Lifting
+    // is free; the brake costs grip, so the aid only reaches for it when it is
+    // set high and the car is pointed where it is going.
+    if (this.ease.lift) pedals &= ~BTN.FIRE;
+    if (this.ease.brake) pedals |= BTN.SWITCH;
     this.mask = pedals | steer;
   }
 
