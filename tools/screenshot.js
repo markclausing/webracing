@@ -239,16 +239,12 @@ async function main() {
     await sleep(700);
     await dev.shot('menu');
 
-    // --- A race, at four moments --------------------------------------------
+    // --- A race, at three moments -------------------------------------------
     console.log('a race on the pool table');
     await dev.run("document.getElementById('start').click()");
     await sleep(500);
-    await dev.run(advance(120));
-    await sleep(400);
-    await dev.shot('countdown');
-
     // Far enough in that the field has spread out and there is rubber on the road.
-    await dev.run(advance(640));
+    await dev.run(advance(760));
     await sleep(400);
     await dev.shot('gameplay');
 
@@ -283,7 +279,6 @@ async function main() {
         console.log(`  (no record offered on run ${i + 1})`);
         continue;
       }
-      if (i === 0) await dev.shot('record');
       await dev.run(type(name));
       await sleep(250);
       await dev.run(type(['Enter']));
