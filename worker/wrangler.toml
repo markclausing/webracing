@@ -10,6 +10,12 @@ name = "webracing"
 main = "index.js"
 compatibility_date = "2025-04-01"
 
+# Not a secret, so it lives here rather than in `wrangler secret put`. It is what
+# the Discord post links to, and it is the one thing worth changing if you host
+# the game somewhere other than GitHub Pages.
+[vars]
+GAME_URL = "https://markclausing.github.io/webracing/"
+
 [[durable_objects.bindings]]
 name = "ARENA"
 class_name = "Arena"

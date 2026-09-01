@@ -18,7 +18,7 @@
  *
  *   export const DEFAULT_RELAY = 'wss://webracing.your-name.workers.dev';
  */
-export const DEFAULT_RELAY = '';
+export const DEFAULT_RELAY = 'wss://webracing.vibecoach.workers.dev';
 
 /**
  * Which relay this page should talk to. A `?relay=` in the address always wins,

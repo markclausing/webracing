@@ -18,6 +18,7 @@ import {
   Highscores, cleanEntry, merge, placeOf, qualifies, sortTable,
 } from '../src/highscores.js';
 import * as commentary from '../src/commentary.js';
+import { announcement, newRows } from '../worker/announce.js';
 import { phrase } from '../src/speech.js';
 import { neighbours, compare } from './sync-shared.js';
 
@@ -348,6 +349,36 @@ check(placeOf(full, { ms: 11000 }) === 1, 'a new best lap goes to the top');
   const orphans = Object.keys(commentary.WORDS).filter((w) => !reachable.has(w));
   check(orphans.length === 0,
     `and every word he has been taught is one he can say (${orphans.join(', ') || 'none spare'})`);
+}
+
+// --- What gets said in Discord -----------------------------------------------
+//
+// Only worth testing because it is the one part of the board a person reads
+// without the game in front of them, and because all three games post into the
+// same channel: a message that does not say which game it came from is noise.
+
+{
+  const before = { breakfast: [], pool: [], garden: [], desk: [] };
+  const after = {
+    ...before,
+    pool: [
+      { id: 'a', name: 'MJC', ms: 13350, at: 2 },
+      { id: 'b', name: 'ACE', ms: 14100, at: 1 },
+    ],
+  };
+  const rows = newRows(before, after);
+  check(rows.length === 2, 'both new rows are news');
+  check(rows[0].place === 1 && rows[0].entry.name === 'MJC', 'and the quickest is first');
+  check(newRows(after, after).length === 0, 'the same board twice is not news');
+
+  const post = announcement(rows, 'https://example.invalid/webracing');
+  const said = post.embeds[0].description;
+  check(post.username === 'WebRacing' && /WebRacing/.test(post.embeds[0].title),
+    'the post says which game it came from');
+  check(/MJC/.test(said) && /0:13\.35/.test(said) && /pool table/.test(said),
+    `who, how quick and where ("${said.split('\n')[0]}")`);
+  check(post.allowed_mentions.parse.length === 0,
+    'and it cannot ping anybody, whatever somebody calls themselves');
 }
 
 // --- The shared plumbing -----------------------------------------------------

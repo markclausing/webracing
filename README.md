@@ -179,8 +179,17 @@ sender, because a client that could name its own seat could drive somebody else'
 car.
 
 Online needs a server. `npm start` gives you one; for playing with people who are
-not on your network, deploy the Cloudflare Worker in `worker/` — free, and about
-two commands. See [worker/README.md](worker/README.md).
+not on your network there is a Cloudflare Worker in `worker/` — free, and about
+two commands. This copy already points at one:
+
+```js
+// src/config.js
+export const DEFAULT_RELAY = 'wss://webracing.vibecoach.workers.dev';
+```
+
+A `?relay=` in the address always wins, so you can point a tab at a different one
+without editing anything, and on localhost the page assumes whatever served it.
+See [worker/README.md](worker/README.md) for deploying your own.
 
 ## The CPU
 

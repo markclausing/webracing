@@ -320,10 +320,13 @@ async function main() {
     check(junk.breakfast.length === 2, 'the server refuses impossible laps and nonsense rows');
 
     await waitFor(() => announced.length >= 2, 'the relay never posted to the webhook', 3000);
-    const said = announced.map((a) => a.content || '').join(' ');
+    const said = announced.map((a) => a.embeds?.[0]?.description || '').join(' ');
     check(/AAA/.test(said) && /BBB/.test(said),
       'both new records are announced, by name');
     check(/0:13\.10/.test(said), 'with the lap time written the way the game writes it');
+    check(/breakfast table/.test(said), 'and the table they were set on');
+    check(announced.every((a) => a.username === 'WebRacing' && a.embeds?.[0]?.url),
+      'each post names the game and links to it, because three games share a channel');
     check(announced.length === 2, `once each, not more (${announced.length} posts for 2 records)`);
 
     const stored = await (await fetch(boardUrl)).json();
