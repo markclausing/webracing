@@ -15,7 +15,7 @@
  */
 
 import {
-  BOOST_R, CAR_L, CAR_PRESETS, CAR_W, SLIDE_MARK, TICK_RATE, VIEW_MAX, VIEW_MIN,
+  BOOST_R, CAR_L, CAR_PRESETS, CAR_W, MIN_CAR_ON_SCREEN, SLIDE_MARK, TICK_RATE, VIEW_MAX,
 } from '../constants.js';
 import { formatLap, lapMs, lapNumber } from '../game/state.js';
 import { drawTable, roundRect } from './table.js';
@@ -85,14 +85,16 @@ export class Renderer {
     const needH = maxY - minY + MARGIN * 2;
     let zoom = Math.min(view.w / needW, view.h / needH);
 
-    // Clamped against the geometric mean of the window rather than its width.
-    //
-    // Width alone is only right on a landscape screen. On a phone held upright
-    // it forced the view to be as wide as a desktop's and therefore twice as
-    // tall as the table, so the game was drawn as a strip across the middle of
-    // the screen with a black band above and below it.
+    // How far out it will go: measured against the geometric mean of the window
+    // rather than its width, because width alone is only right on a landscape
+    // screen - on a phone held upright it forced the view to be as wide as a
+    // desktop's and twice as tall as the table.
     const span = Math.sqrt(view.w * view.h);
-    zoom = clamp(zoom, span / VIEW_MAX, span / VIEW_MIN);
+    const out = span / VIEW_MAX;
+    // And how far in: enough that a car is the same size in the hand as it is on
+    // a laptop. See MIN_CAR_ON_SCREEN.
+    const inTo = Math.max(out, (MIN_CAR_ON_SCREEN * this.pixelRatio()) / CAR_L);
+    zoom = clamp(zoom, out, inTo);
 
     const w = view.w / zoom;
     const h = view.h / zoom;
@@ -113,6 +115,17 @@ export class Renderer {
       this.cam.zoom += (want.zoom - this.cam.zoom) * ZOOM_FOLLOW;
     }
     return this.cam;
+  }
+
+  /**
+   * Device pixels per CSS pixel. Read off the canvas rather than from
+   * devicePixelRatio, because the canvas is what everything here is drawn in and
+   * the two can disagree - the page rounds its backing store, and a headless
+   * browser will tell you whatever it was started with.
+   */
+  pixelRatio() {
+    const css = this.canvas.clientWidth;
+    return css > 0 ? this.canvas.width / css : 1;
   }
 
   /** The part of the canvas the game gets, once the touch controls have theirs. */

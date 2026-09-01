@@ -57,6 +57,29 @@ sfx.talking = globalThis.localStorage?.getItem('webracing.talk') !== 'off';
 audio.enabled = soundOn;
 
 const onTouchDevice = isTouchDevice();
+
+/**
+ * Whether the car drives itself and the button is a brake.
+ *
+ * Only offered on a phone. Holding a throttle down for two minutes with one
+ * thumb while steering with the other leaves nothing spare, and the throttle is
+ * the input you almost always want anyway - what you decide, corner by corner,
+ * is when to come off it.
+ */
+function setThrottle(auto) {
+  touch.auto = auto;
+  document.getElementById('touch').classList.toggle('auto', auto);
+  document.querySelectorAll('[data-throttle]').forEach((b) => {
+    b.classList.toggle('active', (b.dataset.throttle === 'auto') === auto);
+  });
+  try {
+    globalThis.localStorage?.setItem('webracing.throttle', auto ? 'auto' : 'hold');
+  } catch { /* private mode */ }
+}
+
+document.querySelectorAll('[data-throttle]').forEach((btn) => {
+  btn.addEventListener('click', () => setThrottle(btn.dataset.throttle === 'auto'));
+});
 if (onTouchDevice) {
   touch.attach({
     root: document.getElementById('touch'),
@@ -65,6 +88,9 @@ if (onTouchDevice) {
     gas: document.getElementById('btnGas'),
     brake: document.getElementById('btnBrake'),
   });
+  // Only worth offering where there is a thumb to save.
+  document.getElementById('throttleRow').classList.remove('hidden');
+  setThrottle(globalThis.localStorage?.getItem('webracing.throttle') !== 'hold');
   devices.touch = touch;
 }
 

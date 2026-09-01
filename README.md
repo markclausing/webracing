@@ -41,14 +41,22 @@ Then open http://localhost:5173/. There is no `npm install`.
 Every key can be changed in the menu. Gamepads need no setting up: the first two
 share with the keyboard players, a third and fourth get seats of their own.
 
-On a phone you get a wheel, GAS and BRAKE, with the camera fitted into the space
-above them rather than behind them. The wheel steers and nothing else — a
-diagonal on it will not quietly lift you off the throttle — and it is
-proportional: half a thumb's travel is about a quarter of a turn of lock. The
-simulation still takes one bit per direction, because that bitmask is what goes
-over the wire and what makes a lap set on a phone comparable with one set on a
-keyboard; the phone sends it for a share of the ticks instead of all of them, and
-the car settles at whatever share that is.
+On a phone the car drives itself and the one button is the brake, because
+holding a throttle for two minutes with one thumb while steering with the other
+leaves nothing spare — and what you actually decide, corner by corner, is when to
+come *off* the power. You can hold it yourself instead, from the menu.
+
+Steering is the whole bottom-left corner, and it is **relative**: wherever your
+thumb lands is straight ahead, and you steer by moving from there. There is no
+centre to find, which matters because you cannot feel one through glass. It is
+proportional too — the simulation still takes one bit per direction, because that
+bitmask is what goes over the wire and what makes a lap set on a phone comparable
+with one set on a keyboard, so the phone presses it for a share of the ticks
+instead of all of them and the car settles at that share.
+
+The camera is bounded by how big a car should be rather than by how much table
+should fit, so a phone gets the same size of picture as a laptop and simply sees
+less road either side of it.
 
 ## How it drives
 

@@ -24,6 +24,7 @@ import {
 import * as commentary from '../src/commentary.js';
 import { announcement, newRows } from '../worker/announce.js';
 import { phrase } from '../src/speech.js';
+import { readFileSync } from 'node:fs';
 import { neighbours, compare } from './sync-shared.js';
 
 let failed = false;
@@ -586,6 +587,7 @@ for (const level of ['easy', 'normal', 'hard']) {
 {
   const wheel = (at) => {
     const drive = new TouchDrive();
+    drive.auto = false; // the steering bit only, with no throttle mixed in
     drive.wheel = at;
     let on = 0;
     let longest = 0;
@@ -604,6 +606,20 @@ for (const level of ['easy', 'normal', 'hard']) {
   };
 
   check(wheel(0).share === 0, 'a wheel that is straight presses nothing');
+  // The throttle drives itself on a phone, and the button becomes the brake.
+  {
+    const drive = new TouchDrive();
+    drive.auto = true;
+    drive.advance();
+    check((drive.mask & BTN.FIRE) !== 0, 'on automatic the car is on the gas by itself');
+    drive.buttons = BTN.SWITCH;
+    drive.advance();
+    check((drive.mask & BTN.FIRE) === 0, 'and comes off it the moment you brake');
+    drive.auto = false;
+    drive.buttons = 0;
+    drive.advance();
+    check(drive.mask === 0, 'and holds nothing at all when you would rather hold it yourself');
+  }
   check(wheel(1).share === 1, 'and one on full lock presses every tick');
   for (const at of [0.25, 0.5, 0.75]) {
     const { share } = wheel(at);
@@ -618,6 +634,10 @@ for (const level of ['easy', 'normal', 'hard']) {
   const lock = (at) => {
     const drive = new TouchDrive();
     drive.wheel = at;
+    // Coasting: with the throttle on automatic - which is the default - the car
+    // is under power, drives off the road and has its steering reset out from
+    // under the measurement by being put back on.
+    drive.auto = false;
     const state = createRace({ seed: 2, track: 'breakfast', laps: 9, cars: 2, humans: [true, false] });
     let lights = 0;
     while (state.phase === 'countdown' && lights++ < MAX) step(state, [0, 0, 0, 0]);
@@ -702,6 +722,33 @@ for (const level of ['easy', 'normal', 'hard']) {
     'and an online lap is not filed against a CPU setting it never raced');
   check(post.allowed_mentions.parse.length === 0,
     'and it cannot ping anybody, whatever somebody calls themselves');
+}
+
+// --- The page ----------------------------------------------------------------
+//
+// A regression test for a real one, and for a whole class of them. Giving the
+// new steering track id="track" quietly collided with the <select id="track">
+// in the menu; getElementById returns the first in document order, so main.js
+// hung the four table names inside the steering control and the menu's table
+// picker was empty. Nothing threw, and it only showed up in a screenshot.
+
+{
+  const html = readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  const main = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+
+  const ids = [...html.matchAll(/\sid="([^"]+)"/g)].map((m) => m[1]);
+  const twice = ids.filter((id, i) => ids.indexOf(id) !== i);
+  check(twice.length === 0, `every id in the page is its own (${twice.join(', ') || 'no repeats'})`);
+
+  const asked = [...new Set([...main.matchAll(/getElementById\('([^']+)'\)/g)].map((m) => m[1]))];
+  const missing = asked.filter((id) => !ids.includes(id));
+  check(missing.length === 0,
+    `and every one main.js asks for is there (${missing.join(', ') || `all ${asked.length}`})`);
+
+  const attrs = [...new Set([...main.matchAll(/querySelectorAll\('\[([a-z-]+)/g)].map((m) => m[1]))];
+  const absent = attrs.filter((a) => !html.includes(`${a}=`));
+  check(absent.length === 0,
+    `and every attribute it selects on (${absent.join(', ') || attrs.join(', ')})`);
 }
 
 // --- The shared plumbing -----------------------------------------------------

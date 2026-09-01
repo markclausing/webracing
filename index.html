@@ -22,10 +22,10 @@
     <canvas id="table" tabindex="0"></canvas>
 
     <div id="touch" class="hidden">
-      <div id="stick" aria-label="Steering"><div id="knob"></div></div>
+      <div id="stick" aria-label="Steering"><div id="wheelTrack"><div id="knob"></div></div></div>
       <div id="touchButtons">
-        <button id="btnBrake" type="button">BRAKE</button>
         <button id="btnGas" type="button">GAS</button>
+        <button id="btnBrake" type="button">BRAKE</button>
       </div>
     </div>
 
@@ -67,6 +67,14 @@
             <option value="3" selected>Race (3)</option>
             <option value="5">Long (5)</option>
           </select>
+        </div>
+
+        <div class="row hidden" id="throttleRow">
+          <label>Throttle</label>
+          <div class="btns">
+            <button data-throttle="auto" class="active">Automatic</button>
+            <button data-throttle="hold">Hold it yourself</button>
+          </div>
         </div>
 
         <div class="row">

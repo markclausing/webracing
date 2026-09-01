@@ -143,17 +143,26 @@ export const FALL_TICKS = 80;
 export const FALL_ANIM = 26;
 
 /**
- * How much of the table you can see, in world units across the window.
- *
- * VIEW_MIN is how far in the camera will go once the pack is nose to tail; below
- * it the cars are enormous and you cannot see the corner. VIEW_MAX is how far
- * out it will go before it gives up and leaves somebody off the screen with an
- * arrow pointing at them - and it is deliberately close to DROP_GAP, so the
- * moment a car goes out of the picture is very nearly the moment the game calls
- * it dropped.
+ * How far out the camera will go before it gives up and leaves somebody off the
+ * screen with an arrow pointing at them. In world units across the window, and
+ * deliberately close to DROP_GAP, so the moment a car goes out of the picture is
+ * very nearly the moment the game calls it dropped.
  */
-export const VIEW_MIN = 950; // when the pack is together
-export const VIEW_MAX = 1500; // and when it is not
+export const VIEW_MAX = 1500;
+
+/**
+ * How far in it will go, said as how big a car should be rather than as how much
+ * table should fit.
+ *
+ * This used to be a world distance too - "never show less than 950 pixels of
+ * table" - and that is the wrong yardstick the moment the screen is small. A
+ * phone held upright got the same 950 pixels of table as a desktop, on a third
+ * of the area, so a car came out 16 CSS pixels long against 32 on a laptop and
+ * the game was unreadable in the hand. Measured in car lengths instead, every
+ * screen gets a picture of the same size and only the amount of road either side
+ * of it changes.
+ */
+export const MIN_CAR_ON_SCREEN = 30; // CSS pixels, nose to tail
 
 /** Counted down at the start of every race. */
 export const COUNTDOWN_TICKS = 3 * TICK_RATE;
