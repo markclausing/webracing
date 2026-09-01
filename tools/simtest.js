@@ -13,7 +13,10 @@ import { createRace, formatLap, hashState, lapMs } from '../src/game/state.js';
 import { step } from '../src/game/sim.js';
 import { TRACKS, loadTrack } from '../src/game/tracks.js';
 import { bendAhead, gapAround, nearest, pointAt } from '../src/game/path.js';
-import { BTN, DROP_GAP, TICK_RATE } from '../src/constants.js';
+import { aiMask } from '../src/game/ai.js';
+import {
+  AI_LEVELS, BOOST_MAX, BOOST_TICKS, BTN, DROP_GAP, SLIP_RANGE, SLIP_WIDTH, TICK_RATE,
+} from '../src/constants.js';
 import {
   Highscores, LEVELS, TIERS, cleanEntry, levelOf, merge, partsOf, placeOf, qualifies, sortTable,
 } from '../src/highscores.js';
@@ -344,6 +347,198 @@ check(levelOf('nonsense', 'hard') === LEVELS[0], 'a list nobody has heard of is 
   check(board.table('desk', 'easy').length === 0, 'nor against other opponents');
   check(new Highscores({ getItem: (k) => store.get(k) ?? null }).table('desk', 'hard').length === 1,
     'and it is still there when the page is loaded again');
+}
+
+// --- The tow -----------------------------------------------------------------
+//
+// Sit close behind somebody and you get a little of their air. It is worth
+// seven per cent, it works for the CPU exactly as it works for you, and it is
+// the reason a quick driver does not simply vanish up the road on lap one.
+
+{
+  const state = createRace({
+    seed: 4, track: 'breakfast', laps: 3, humans: [false, false, false, false], difficulty: 'hard',
+  });
+  const car = state.cars[0];
+  const other = state.cars[1];
+  // Past the lights first. Nothing is worked out during the countdown, this
+  // included, so a test that measures a stationary grid measures nothing.
+  let lights = 0;
+  while (state.phase === 'countdown' && lights++ < MAX) step(state, [0, 0, 0, 0]);
+
+  // Tucked in right behind, going the same way and quickly enough for there to
+  // be any air to speak of.
+  const put = (ahead, across) => {
+    car.x = 500;
+    car.y = 500;
+    car.angle = 0;
+    car.vx = 300;
+    car.vy = 0;
+    other.x = 500 + ahead;
+    other.y = 500 + across;
+    other.angle = 0;
+    other.vx = 300;
+    other.vy = 0;
+    for (const c of state.cars.slice(2)) {
+      c.x = -9999;
+      c.y = -9999;
+      c.mode = 'waiting';
+    }
+    step(state, [0, 0, 0, 0]);
+    return car.slip;
+  };
+
+  const deep = put(60, 0);
+  check(deep > 0.6, `right behind somebody is deep in the tow (${deep.toFixed(2)})`);
+  check(put(SLIP_RANGE - 20, 0) < deep, 'and it fades with distance');
+  check(put(SLIP_RANGE + 60, 0) === 0, 'and is gone once they are too far up the road');
+  check(put(60, SLIP_WIDTH + 20) === 0, 'and gone if you are not on their line');
+  check(put(-60, 0) === 0, 'a car behind you is not towing you');
+  // The one that matters for it not being a handout.
+  other.angle = Math.PI;
+  step(state, [0, 0, 0, 0]);
+  check(car.slip === 0, 'and neither is one coming the other way');
+}
+
+// --- The turbo ---------------------------------------------------------------
+
+{
+  // Four cars that never move: the field cannot spread, so nothing is offered.
+  const tight = createRace({
+    seed: 4, track: 'garden', laps: 3, humans: [true, true, true, true],
+  });
+  let guard = 0;
+  while (tight.tick < TICK_RATE * 30 && guard++ < MAX) tight.cars.forEach((c) => {
+    step(tight, [0, 0, 0, 0]);
+  });
+  check(tight.boosts.length === 0,
+    'a field that is nose to tail is offered no turbos, because it needs none');
+}
+
+{
+  // One car driven flat out and three left on the grid: now there is a gap.
+  const state = createRace({
+    seed: 4, track: 'garden', laps: 5, humans: [false, true, true, true], difficulty: 'hard',
+  });
+  const dropped = [];
+  const taken = [];
+  let guard = 0;
+  let onRoad = 0;
+  while (state.phase !== 'over' && guard++ < TICK_RATE * 200) {
+    step(state, [0, 0, 0, 0]);
+    onRoad = Math.max(onRoad, state.boosts.length);
+    for (const e of state.events) {
+      if (e.type === 'boostdrop') dropped.push(state.tick);
+      if (e.type === 'boost') taken.push(e.seat);
+    }
+  }
+  check(dropped.length > 0, `a spread out field is offered turbos (${dropped.length})`);
+  check(onRoad <= BOOST_MAX, `never more than ${BOOST_MAX} on the road at once (${onRoad})`);
+  check(!taken.includes(0),
+    'and the car that is running away at the front never gets one');
+}
+
+{
+  // What one is worth, and that being scooped up costs you it.
+  const state = createRace({ seed: 4, track: 'pool', laps: 3, humans: [true, false, false, false] });
+  const car = state.cars[0];
+  let guard = 0;
+  while (state.phase !== 'race' && guard++ < MAX) step(state, [0, 0, 0, 0]);
+  car.boost = BOOST_TICKS;
+  step(state, [BTN.UP, 0, 0, 0]);
+  check(car.boost === BOOST_TICKS - 1, 'a turbo runs down while you use it');
+  car.mode = 'falling';
+  car.timer = 1;
+  step(state, [BTN.UP, 0, 0, 0]);
+  check(car.boost === 0, 'and you drop it over the edge of the table with everything else');
+}
+
+// --- Leaning on people -------------------------------------------------------
+
+check(AI_LEVELS.easy.nudge === 0 && AI_LEVELS.hard.nudge > AI_LEVELS.normal.nudge,
+  'EASY drives round you and the harder settings lean on you');
+
+{
+  // Asked of the driver directly, with no race running at all.
+  //
+  // Both of the obvious ways to test this turned out to be traps. Counting
+  // contacts over a race measures how tightly the field happens to be running -
+  // at one point NORMAL logged twice the contacts of HARD purely because NORMAL
+  // cars bunch up. And driving a car about by hand to see where it ends up kept
+  // measuring the harness instead: parked on the pool table it fell in a pocket,
+  // and parked on the breakfast table the other cars were still sitting on the
+  // grid counting as the leader, so the car under test was scooped up for being
+  // a lap down before it had turned a wheel.
+  //
+  // aiMask is a pure function of the state. Call it twice, once with somebody
+  // alongside and once without, and read the answer off directly.
+  const steersInto = (level) => {
+    const state = createRace({
+      seed: 8, track: 'breakfast', laps: 3, cars: 2, humans: [false, false], difficulty: level,
+    });
+    state.phase = 'race';
+    const [car, rival] = state.cars;
+    // Swept right round the loop rather than sampled at a handful of places.
+    //
+    // The steering is one bit - left, right or neither - so a lean that takes
+    // the demanded angle from 0.40 radians to 0.50 produces exactly the same
+    // button, and six positions all happened to be mid-corner. It is where the
+    // driver is close to neutral that the lean decides anything, and over a
+    // whole lap there are plenty of those.
+    let differed = 0;
+    let tried = 0;
+    const step = state.track.path.total / 40;
+    for (let at = 0; at < state.track.path.total; at += step) {
+      const on = pointAt(state.track.path, at);
+      const put = (withRival, off) => {
+        car.x = on.x;
+        car.y = on.y;
+        car.angle = Math.atan2(on.ty, on.tx);
+        car.vx = Math.cos(car.angle) * 260;
+        car.vy = Math.sin(car.angle) * 260;
+        car.node = on.node;
+        car.along = at;
+        // On the centreline, so a rival to one side of it is the one nearer the
+        // edge - the only case a driver leans on, because leaning on somebody
+        // already on your inside puts you off the road and not them.
+        car.side = 0;
+        car.drift = 0;
+        car.slip = 0;
+        car.boost = 0;
+        car.thinkAt = -99;
+        rival.mode = withRival ? 'run' : 'waiting';
+        rival.x = car.x - Math.sin(car.angle) * off;
+        rival.y = car.y + Math.cos(car.angle) * off;
+        rival.angle = car.angle;
+        rival.vx = car.vx;
+        rival.vy = car.vy;
+        return aiMask(state, car);
+      };
+      // And at a few distances alongside, because how close somebody is decides
+      // how hard the driver leans on them.
+      for (const off of [26, 34, 48, 64]) {
+        tried++;
+        if (put(false, off) !== put(true, off)) differed++;
+      }
+    }
+    return { differed, tried };
+  };
+
+  check(steersInto('easy').differed === 0,
+    'EASY drives the same line whether or not you are alongside');
+  const hard = steersInto('hard');
+  check(hard.differed >= 3,
+    `HARD steers into you when you are (in ${hard.differed} of ${hard.tried} placings round the loop)`);
+}
+
+// And none of it makes the races stop working.
+for (const level of ['easy', 'normal', 'hard']) {
+  let finished = 0;
+  for (const seed of [3, 9, 21, 44]) {
+    const { state } = race({ track: 'pool', seed, difficulty: level });
+    if (state.phase === 'over') finished++;
+  }
+  check(finished === 4, `${level.toUpperCase()}: every race still reaches a finish`);
 }
 
 // --- The CPU actually uses its wobble ----------------------------------------

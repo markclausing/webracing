@@ -51,6 +51,9 @@ export function createRace(options = {}) {
     events: [],
     // Finishing order, filled as cars cross the line for the last time.
     order: [],
+    // Turbos lying on the road. Dropped behind the leader and short lived, so
+    // running away at the front means never meeting one - see turbo() in sim.js.
+    boosts: [],
     // The quickest clean lap anybody has turned in this race, in ticks.
     best: null,
     cars: [],
@@ -117,6 +120,10 @@ function makeCar(state, index, human, ai) {
     timer: 0,
     fell: 0,
     drops: 0,
+    // How deep in somebody's wake it is, 0 to 1, and how many ticks of turbo it
+    // has left. Both raise the ceiling and push a little harder towards it.
+    slip: 0,
+    boost: 0,
     // Read by the renderer and the sound, never by the simulation.
     surface: 'road',
     slide: 0,
@@ -182,6 +189,15 @@ export function hashState(state) {
   };
   mix(state.tick);
   mix(state.phase === 'race' ? 1 : state.phase === 'countdown' ? 2 : 3);
+  // The turbos are hashed too. They come out of state.rng, so two machines that
+  // disagreed about where one landed would be about to disagree about the race,
+  // and this is the cheapest place to find that out.
+  mix(state.boosts.length);
+  for (const boost of state.boosts) {
+    mix(boost.x);
+    mix(boost.y);
+    mix(boost.life);
+  }
   for (const car of state.cars) {
     mix(car.x);
     mix(car.y);
@@ -189,6 +205,7 @@ export function hashState(state) {
     mix(car.vy);
     mix(car.angle * 100);
     mix(car.lap);
+    mix(car.boost);
     mix(car.finished ? 1 : 0);
   }
   return h >>> 0;

@@ -15,7 +15,7 @@
  */
 
 import {
-  CAR_L, CAR_PRESETS, CAR_W, SLIDE_MARK, TICK_RATE, VIEW_MAX, VIEW_MIN,
+  BOOST_R, CAR_L, CAR_PRESETS, CAR_W, SLIDE_MARK, TICK_RATE, VIEW_MAX, VIEW_MIN,
 } from '../constants.js';
 import { formatLap, lapMs, lapNumber } from '../game/state.js';
 import { drawTable, roundRect } from './table.js';
@@ -27,6 +27,8 @@ const ZOOM_FOLLOW = 0.07;
 const MARGIN = 150;
 /** How many skid marks are kept before the oldest are forgotten. */
 const MARKS = 520;
+/** A turbo starts fading with this much of its life left, in ticks. */
+const BOOST_FADE = 60;
 
 export class Renderer {
   constructor(canvas) {
@@ -162,6 +164,7 @@ export class Renderer {
 
     this.trackMarks(state);
     this.drawMarks();
+    this.drawBoosts(state);
     // Whoever is furthest up the screen is drawn first, so a car catching
     // another one goes over the top of it rather than under.
     const order = [...state.cars].sort((a, b) => a.y - b.y);
@@ -212,6 +215,46 @@ export class Renderer {
     }
   }
 
+  /**
+   * The turbos lying on the road.
+   *
+   * A chevron pointing the way you are going, so it reads as "this way, faster"
+   * rather than as a coin. It fades over its last second, which is the only
+   * warning you get that one is about to go.
+   */
+  drawBoosts(state) {
+    const ctx = this.ctx;
+    const z = this.cam.zoom;
+    for (const boost of state.boosts) {
+      const at = this.toScreen(boost.x, boost.y);
+      const fade = Math.min(1, boost.life / BOOST_FADE);
+      const pulse = 0.7 + 0.3 * Math.sin(state.tick * 0.22 + boost.born);
+      const r = BOOST_R * z;
+
+      ctx.save();
+      ctx.globalAlpha = fade;
+      ctx.translate(at.x, at.y);
+      ctx.fillStyle = `rgba(255, 225, 77, ${0.16 * pulse})`;
+      ctx.beginPath();
+      ctx.arc(0, 0, r * (1 + 0.15 * pulse), 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.strokeStyle = `rgba(255, 240, 150, ${0.9 * pulse})`;
+      ctx.lineWidth = Math.max(1.5, 3 * z);
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      for (const off of [-0.35, 0.35]) {
+        ctx.beginPath();
+        ctx.moveTo(-r * 0.5, (off - 0.35) * r);
+        ctx.lineTo(r * 0.45, off * r);
+        ctx.lineTo(-r * 0.5, (off + 0.35) * r);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+    ctx.globalAlpha = 1;
+  }
+
   drawCar(state, car) {
     const ctx = this.ctx;
     const z = this.cam.zoom;
@@ -229,6 +272,31 @@ export class Renderer {
     ctx.rotate(car.angle + fell * 2.4);
     ctx.scale(scale, scale);
     ctx.globalAlpha = 1 - fell * 0.5;
+
+    // What the car is getting for free, out of the back of it. A turbo is a
+    // flame; a tow is a few lines of disturbed air, and faint on purpose - it is
+    // worth seven per cent and should not look like it is worth more.
+    if (car.boost > 0) {
+      const flare = 0.6 + 0.4 * Math.sin(state.tick * 0.9);
+      for (const [len, colour] of [[1.5, 'rgba(255, 120, 40, 0.75)'], [0.85, 'rgba(255, 232, 150, 0.9)']]) {
+        ctx.fillStyle = colour;
+        ctx.beginPath();
+        ctx.moveTo(-CAR_L / 2, -CAR_W * 0.28);
+        ctx.lineTo(-CAR_L / 2 - CAR_L * len * flare, 0);
+        ctx.lineTo(-CAR_L / 2, CAR_W * 0.28);
+        ctx.closePath();
+        ctx.fill();
+      }
+    } else if (car.slip > 0.25) {
+      ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 + car.slip * 0.18})`;
+      ctx.lineWidth = 1.2;
+      for (const y of [-CAR_W * 0.3, CAR_W * 0.3]) {
+        ctx.beginPath();
+        ctx.moveTo(-CAR_L * 0.6, y);
+        ctx.lineTo(-CAR_L * (0.6 + car.slip * 0.7), y);
+        ctx.stroke();
+      }
+    }
 
     // Shadow, offset a little so the car sits above the table rather than on it.
     ctx.fillStyle = 'rgba(8, 8, 10, 0.4)';

@@ -14,7 +14,7 @@
  */
 
 import {
-  BTN, TOP_SPEED, TURN_STALL,
+  BOOST_POWER, BOOST_R, BTN, CAR_R, NUDGE_RANGE, SLIP_MAX, TOP_SPEED, TURN_STALL,
 } from '../constants.js';
 import { bendAhead, pointAt } from './path.js';
 import { nextRandom } from '../util.js';
@@ -30,6 +30,72 @@ function wrapAngle(a) {
   return v;
 }
 
+/**
+ * A turbo close enough ahead to be worth going for.
+ *
+ * Ahead along the road rather than merely nearby, so a driver does not turn
+ * round for one it has just gone past, and close enough that the detour costs
+ * less than the turbo is worth.
+ */
+function wanted(state, car) {
+  const { path } = state.track;
+  let best = null;
+  let bestGap = Infinity;
+  for (const boost of state.boosts) {
+    const d = Math.hypot(boost.x - car.x, boost.y - car.y);
+    if (d > 260 || d < BOOST_R) continue;
+    const cs = Math.cos(car.angle);
+    const sn = Math.sin(car.angle);
+    const ahead = (boost.x - car.x) * cs + (boost.y - car.y) * sn;
+    if (ahead < 30) continue;
+    if (d < bestGap) {
+      bestGap = d;
+      best = boost;
+    }
+  }
+  void path;
+  return best;
+}
+
+/**
+ * Somebody close enough to lean on: *beside* you, going the same way.
+ *
+ * Beside, and not in front, and that is the whole difference between squeezing
+ * and ramming. Aimed at anything ahead as well, a driver simply drove into the
+ * back of whoever it was following and stayed there - four evenly matched cars
+ * on the pool table logged 667 contacts in a forty-five second race, which is
+ * not a move, it is grinding.
+ *
+ * And only towards the inside. Leaning on a car that is already on your inside
+ * puts you off the road, not them, and a driver that keeps doing that is not
+ * aggressive, it is stupid.
+ */
+function alongside(state, car) {
+  const cs = Math.cos(car.angle);
+  const sn = Math.sin(car.angle);
+  let best = null;
+  let bestGap = Infinity;
+  for (const other of state.cars) {
+    if (other === car || other.mode !== 'run') continue;
+    const dx = other.x - car.x;
+    const dy = other.y - car.y;
+    const d = Math.hypot(dx, dy);
+    if (d > NUDGE_RANGE || d < 1) continue;
+    const ahead = dx * cs + dy * sn;
+    const across = -dx * sn + dy * cs;
+    if (ahead < -CAR_R || ahead > CAR_R * 3) continue; // behind, or in front: leave them
+    if (Math.abs(across) < CAR_R) continue; // directly in line: that is a shunt
+    if (Math.cos(other.angle - car.angle) < 0.5) continue; // going the other way
+    // Only if they are the one nearer the edge of the road.
+    if (Math.abs((car.side || 0) + across) < Math.abs(car.side || 0)) continue;
+    if (d < bestGap) {
+      bestGap = d;
+      best = other;
+    }
+  }
+  return best;
+}
+
 export function aiMask(state, car) {
   // Reaction time, and the cheapest lever there is: a driver that re-reads the
   // road every single tick is inhumanly tidy, and one that re-reads it every
@@ -41,6 +107,12 @@ export function aiMask(state, car) {
   const { path } = track;
   const speed = Math.sqrt(car.vx * car.vx + car.vy * car.vy);
   const top = TOP_SPEED * track.handling.top * car.ai.speed;
+  // What a tow or a turbo is worth to it right now. Without this the driver
+  // works out a target speed that knows nothing about either, reaches it on a
+  // straight, and brakes - throwing away the turbo it collected two seconds ago.
+  // Measured before it was here: the car in second picked up seven turbos a race
+  // and never closed a yard with any of them.
+  const help = top * (SLIP_MAX * car.slip + (car.boost > 0 ? BOOST_POWER : 0));
 
   // How far up the road it is reading, stretched with speed: at a crawl you
   // steer at the next few feet, at speed you steer at the corner.
@@ -64,8 +136,39 @@ export function aiMask(state, car) {
   }
 
   const aim = pointAt(path, car.along + look);
-  const tx = aim.x - aim.ty * car.drift;
-  const ty = aim.y + aim.tx * car.drift;
+  let tx = aim.x - aim.ty * car.drift;
+  let ty = aim.y + aim.tx * car.drift;
+
+  // A turbo just up the road is worth a small detour. The CPU gets these the
+  // same way you do, and one that drove past them while you collected them
+  // would look less like an opponent and more like scenery.
+  const grab = wanted(state, car);
+  if (grab) {
+    tx = tx * 0.35 + grab.x * 0.65;
+    ty = ty * 0.35 + grab.y * 0.65;
+  }
+
+  // Leaning on whoever is alongside. Wound up with the level, and pointed at
+  // whoever happens to be there - the simulation knows which cars are people and
+  // deliberately does not look, because a CPU that only ever elbows the human is
+  // a CPU you can feel cheating.
+  //
+  // Not conditional on there being no turbo about, which it used to be. Turbos
+  // are on the road often enough that a driver spent most of a race ignoring the
+  // car it was wheel to wheel with, and measured on a straight it moved across
+  // by two tenths of a pixel in a second. Wanting the turbo and leaning on
+  // somebody are both just pulls on the same aim.
+  if (car.ai.nudge > 0) {
+    const rival = alongside(state, car);
+    if (rival) {
+      // Aimed through them rather than at them, and harder the closer they are:
+      // a squeeze is a place you intend to be, not a car you intend to hit.
+      const close = 1 - Math.min(1, Math.hypot(rival.x - car.x, rival.y - car.y) / NUDGE_RANGE);
+      const push = car.ai.nudge * close * 1.6;
+      tx += (rival.x - car.x) * push;
+      ty += (rival.y - car.y) * push;
+    }
+  }
 
   const want = Math.atan2(ty - car.y, tx - car.x);
   let diff = wrapAngle(want - car.angle);
@@ -93,6 +196,10 @@ export function aiMask(state, car) {
   // the hairpin and HARD going into it.
   const bend = bendAhead(path, car.along + 20, Math.max(90, look * 1.5));
   let target = top * (1 - bend * 0.82 * car.ai.slip);
+  // The extra is worth having on a straight and worth nothing in a corner: the
+  // tyres do not know you picked anything up, and a driver that carried a turbo
+  // into a hairpin would simply arrive at the scenery sooner.
+  target += help * Math.max(0, 1 - bend * 2.2);
   // Being a long way off the road is its own reason to slow down: at full speed
   // on the grass it will never get back on.
   if (Math.abs(car.side || 0) > track.width) target *= 0.72;

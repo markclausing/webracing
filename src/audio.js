@@ -469,6 +469,30 @@ export class Sfx {
     this.engine.tone(780, now + 0.09, 0.09, 'square', 0.16);
   }
 
+  /**
+   * Picking up a turbo. A rising sweep with a bite of noise on it - the sweep is
+   * the arcade convention for "you now have more of something", and the noise
+   * stops it sounding like a menu.
+   */
+  turbo() {
+    if (!this.ready()) return;
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(180, now);
+    osc.frequency.exponentialRampToValueAtTime(1250, now + 0.26);
+    gain.gain.setValueAtTime(0.0001, now);
+    gain.gain.exponentialRampToValueAtTime(0.22, now + 0.05);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.34);
+    osc.connect(gain).connect(this.engine.master);
+    osc.start(now);
+    osc.stop(now + 0.36);
+    this.engine.noiseBurst(now, {
+      freq: 900, q: 0.9, dur: 0.3, level: 0.12, sweepTo: 4200,
+    });
+  }
+
   /** Over the line. A chime, and a brighter one for a personal best. */
   lap(best = false) {
     if (!this.ready()) return;
@@ -544,6 +568,9 @@ export class Sfx {
           break;
         case 'ready':
           if (e.seat === seat) this.ready2go();
+          break;
+        case 'boost':
+          if (e.seat === seat) this.turbo();
           break;
         case 'lap':
           if (e.seat === seat) {

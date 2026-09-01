@@ -79,11 +79,51 @@ that a straight is a straight — and it stops altogether when you are parked.
 
 **Bump people.** Cars bounce off each other hard, and there is nothing in the
 rules about it. A shove at the right moment puts somebody in the milk, over the
-edge of the table, or into a pocket.
+edge of the table, or into a pocket. The CPU knows this too, and the harder the
+setting the more willing it is to lean on whoever is alongside and squeeze them
+towards the edge — measured over 60 races on HARD, turning that off drops the
+number of cars shoved off the road from 0.78 a race to 0.27. It is pointed at
+whoever happens to be there, not at you: the simulation knows which cars are
+people and deliberately does not look, because a CPU that only ever elbows the
+human is a CPU you can feel cheating.
+
+**Sit in the tow.** Tuck in behind somebody and you get a little of their air —
+seven per cent, right in the middle of it, fading to nothing by about ten car
+lengths back or a car's width off their line. It is small deliberately. The point
+is not to make following easy, it is to stop a quick driver disappearing over the
+horizon on lap one and racing nobody for the next two minutes. Everybody gets it,
+including the CPU; a tow only the player got would be a handout.
+
+**Pick the turbos up.** Every so often one is dropped on the road a short way
+ahead of a car that is not leading, and only where the leader has already gone
+past. It fades in about four seconds. So the further back you are the more of
+them you find, and if you are running away at the front you never meet one — not
+because the game refuses you, but because by the time it appears you are already
+past. It is worth 28% more speed for a second and a half, which is a straight's
+worth of it and nothing at all in a corner.
 
 ![A car sideways on the exit of a corner with black tyre marks curving behind it](docs/screenshots/slide.png)
 
 ## The rules
+
+Three things exist to stop the race being over on lap one, and all three work the
+same way for the CPU as for you. **The tow** keeps a pack together once it is
+together. **The turbos** land where the leader is not. **The squeeze** means a
+car alongside you is a problem rather than scenery.
+
+Measured with one scripted driver against three HARD, over 100 races, timing how
+long before the leader is more than a tow's length clear and stays clear:
+
+| | breaks clear after | never breaks clear |
+| --- | --- | --- |
+| a clearly quicker driver, before | 14.8s | 0 of 100 |
+| a clearly quicker driver, after | **23.1s** | **15 of 100** |
+| a driver at about the CPU's pace, before | 26.7s | 10 of 100 |
+| a driver at about the CPU's pace, after | 26.0s | **47 of 100** |
+
+At parity, half the races now stay together to the flag. A driver who is
+genuinely quicker still wins — they should — but it takes them a lap and a half
+longer to be on their own.
 
 ![Three, in big yellow figures over the pool table, with the name of the table underneath](docs/screenshots/countdown.png)
 
@@ -159,12 +199,11 @@ consistently in either direction:
 | the garden path | 14.50s | 14.50s | **14.48s** |
 | the desk | 17.75s | 17.75s | 17.75s |
 
-What the setting does change is the traffic — clear air 96%, 81% and 91% of the
-time, and 0, 25 and 17 bumps a race — and traffic can only ever cost you time,
-because there is no slipstream in this game and another car is never a help. So
-the lists are not measuring how good your car was. They are keeping laps set in
-clear air apart from laps set in a fight, which is the only honest thing to do
-with them on one board.
+What the setting does change is the traffic, and traffic now cuts both ways: sit
+in somebody's tow and you are quicker than you could be alone, get leaned on by a
+HARD driver and you are in the milk. So the lists are not measuring how good your
+car was. They are keeping laps set in clear air apart from laps set in a fight,
+which is the only honest thing to do with them on one board.
 
 Online is a list of its own because it has to be. An online race has no CPU
 setting at all — every car is a person — and filing those laps under whichever
@@ -352,6 +391,11 @@ corner is a voice you turn off.
   adding a fifth is a small job — see `src/game/tracks.js`.
 - No time trial: there is no way to go out on your own and just chase a time,
   which is the mode a lap record board really wants.
+- The CPU's steering is one bit, left or right, the same as a keyboard. So
+  leaning on somebody only changes anything where the driver was close to
+  neutral anyway - mid-corner the road is already asking for full lock and the
+  lean is invisible. It is why the squeeze reads as occasional rather than
+  constant.
 - No title screen art. The menu sits over the table you are about to race, which
   will do for now.
 - The camera zooms out and stops. On a phone held upright, four cars at full

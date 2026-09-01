@@ -22,11 +22,13 @@
  */
 
 import {
-  ACCEL, BRAKE, BRAKE_GRIP, BTN, BUMP_MIN, BUMP_PUSH, CAR_R, DROP_GAP,
+  ACCEL, BOOST_AHEAD, BOOST_EVERY, BOOST_LIFE, BOOST_MAX, BOOST_MIN_GAP, BOOST_POWER,
+  BOOST_R, BOOST_TICKS, BRAKE, BRAKE_GRIP, BTN, BUMP_MIN, BUMP_PUSH, CAR_R, DROP_GAP,
   DROP_TICKS, DT, FALL_ANIM, FALL_TICKS, FINISH_TICKS, GRIP, REJOIN_BACK, REVERSE_ACCEL,
-  REVERSE_SPEED, ROLL_DRAG, SLIDE_DRAG, SLIDE_MARK, SURFACES, TICK_RATE, TOP_SPEED,
-  TURN_FADE, TURN_MIN, TURN_RATE, TURN_STALL,
+  REVERSE_SPEED, ROLL_DRAG, SLIDE_DRAG, SLIDE_MARK, SLIP_MAX, SLIP_MIN_SPEED, SLIP_RANGE,
+  SLIP_WIDTH, SURFACES, TICK_RATE, TOP_SPEED, TURN_FADE, TURN_MIN, TURN_RATE, TURN_STALL,
 } from '../constants.js';
+import { nextRandom } from '../util.js';
 import { gapAround, nearest, pointAt } from './path.js';
 import { leader, rank } from './state.js';
 import { aiMask } from './ai.js';
@@ -63,9 +65,14 @@ export function step(state, inputs = []) {
     return state;
   }
 
+  // Who is in whose wake, worked out for everybody before anybody moves. Done
+  // in its own pass rather than inside drive(), or the first car in the list
+  // would be reading last tick's positions and the last car this tick's.
+  tow(state);
   for (const car of state.cars) drive(state, car, maskFor(state, car, inputs));
   bumps(state);
   for (const car of state.cars) locate(state, car);
+  turbo(state);
   rank(state);
 
   if (state.phase === 'finish') {
@@ -159,7 +166,14 @@ function drive(state, car, mask) {
   fwd -= Math.sign(fwd) * Math.min(Math.abs(fwd), Math.abs(lat) * SLIDE_DRAG * DT);
 
   if (surf.drag) fwd -= Math.sign(fwd) * Math.min(Math.abs(fwd), surf.drag * DT);
-  const cap = TOP_SPEED * surf.top * track.handling.top;
+
+  // The tow and the turbo, and they do the same thing: raise the ceiling and
+  // push a little harder towards it. Raising the ceiling alone would take a
+  // straight to get anything out of, which is not what either is for.
+  if (car.boost > 0) car.boost--;
+  const extra = SLIP_MAX * car.slip + (car.boost > 0 ? BOOST_POWER : 0);
+  const cap = TOP_SPEED * surf.top * track.handling.top * (1 + extra);
+  if (extra > 0 && accel && !brake) fwd += ACCEL * extra * 1.6 * DT;
   if (fwd > cap) fwd = cap;
   if (fwd < -REVERSE_SPEED) fwd = -REVERSE_SPEED;
 
@@ -177,6 +191,112 @@ function drive(state, car, mask) {
   if (!wasSliding && Math.abs(lat) > SLIDE_MARK) {
     state.events.push({ type: 'skid', seat: car.index, hard: Math.abs(lat) });
   }
+}
+
+/**
+ * The tow, for everybody at once.
+ *
+ * You are in somebody's wake if they are in front of you, close, and near enough
+ * to your line. `car.slip` comes out between 0 and 1 - deepest right behind
+ * them, fading to nothing at the edges - and drive() turns it into speed.
+ *
+ * Measured from your own nose rather than from the road, so it works round a
+ * corner as well as down a straight, and it does not care who is leading: the
+ * CPU gets exactly the same tow you do. That is the point of having it.
+ */
+function tow(state) {
+  for (const car of state.cars) {
+    car.slip = 0;
+    if (car.mode !== 'run') continue;
+    const speed = Math.sqrt(car.vx * car.vx + car.vy * car.vy);
+    if (speed < SLIP_MIN_SPEED) continue;
+    const cs = Math.cos(car.angle);
+    const sn = Math.sin(car.angle);
+
+    for (const other of state.cars) {
+      if (other === car || other.mode !== 'run') continue;
+      const dx = other.x - car.x;
+      const dy = other.y - car.y;
+      // In front of me, and how far off to one side.
+      const ahead = dx * cs + dy * sn;
+      const across = Math.abs(-dx * sn + dy * cs);
+      if (ahead <= CAR_R || ahead > SLIP_RANGE || across > SLIP_WIDTH) continue;
+      // And going roughly the same way: a car coming the other way is pushing
+      // air at you, not out of your way.
+      if (Math.cos(other.angle - car.angle) < 0.6) continue;
+
+      const near = 1 - (ahead - CAR_R) / (SLIP_RANGE - CAR_R);
+      const line = 1 - across / SLIP_WIDTH;
+      const pull = near * line;
+      if (pull > car.slip) car.slip = pull;
+    }
+  }
+}
+
+/**
+ * The turbos on the road: dropped, taken, and gone again.
+ *
+ * Dropped a little way up the road from the last car still running, and only
+ * when the leader is far enough past that spot to be nowhere near it. Then given
+ * about four seconds to live. Nothing here refuses the leader a turbo; it simply
+ * puts them where the leader is not, and takes them away before the leader could
+ * get back round to one.
+ */
+function turbo(state) {
+  if (state.phase !== 'race') return;
+  const running = state.cars.filter((c) => c.mode === 'run' && !c.finished);
+
+  for (let i = state.boosts.length - 1; i >= 0; i--) {
+    const boost = state.boosts[i];
+    boost.life--;
+    let taken = null;
+    for (const car of running) {
+      if (Math.hypot(car.x - boost.x, car.y - boost.y) < BOOST_R + CAR_R) {
+        taken = car;
+        break;
+      }
+    }
+    if (taken) {
+      taken.boost = BOOST_TICKS;
+      state.events.push({ type: 'boost', seat: taken.index, x: boost.x, y: boost.y });
+      state.boosts.splice(i, 1);
+    } else if (boost.life <= 0) {
+      state.events.push({ type: 'boostgone', x: boost.x, y: boost.y });
+      state.boosts.splice(i, 1);
+    }
+  }
+
+  if (state.tick % BOOST_EVERY !== 0 || state.boosts.length >= BOOST_MAX) return;
+  if (running.length < 2) return;
+
+  // Dropped up the road from one of the cars that is not leading, picked at
+  // random from them, and only if the leader is already past that spot.
+  //
+  // Tied to the last car instead, which is where this started, they only ever
+  // landed in front of whoever was fourth - so the car in second, the one who
+  // could actually still do something about the race, never saw one. Every car
+  // behind the leader now gets a turn, and the further back you are the more of
+  // them you meet, because the ones dropped for the cars ahead of you are still
+  // lying there when you arrive.
+  const front = Math.max(...state.cars.map((c) => c.progress));
+  const chasing = running.filter((c) => c.progress < front);
+  if (!chasing.length) return;
+  const forCar = chasing[Math.min(chasing.length - 1, Math.floor(nextRandom(state) * chasing.length))];
+  const at = forCar.progress + BOOST_AHEAD;
+  if (front - at < BOOST_MIN_GAP) return; // the leader would be right on top of it
+
+  const { path } = state.track;
+  const on = pointAt(path, at);
+  // Somewhere across the road, so they are worth steering for rather than
+  // collected by driving in a straight line.
+  const off = (nextRandom(state) * 2 - 1) * state.track.width * 0.55;
+  state.boosts.push({
+    x: on.x - on.ty * off,
+    y: on.y + on.tx * off,
+    life: BOOST_LIFE,
+    born: state.tick,
+  });
+  state.events.push({ type: 'boostdrop', x: on.x - on.ty * off, y: on.y + on.tx * off });
 }
 
 /**
@@ -466,6 +586,7 @@ function rejoin(state, car, why) {
   car.lap = lap;
   car.progress = lap * path.total + at.along;
   car.surface = 'road';
+  car.boost = 0; // whatever you had, you dropped it over the edge
   car.clean = false;
   // The clock starts again from here. The lap can never be a record now - that
   // is what `clean` is for - but the running time on screen is the one number

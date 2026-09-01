@@ -71,6 +71,57 @@ export const SLIDE_MARK = 42;
 export const BUMP_PUSH = 1.35; // how much of the closing speed comes back
 export const BUMP_MIN = 30; // a shove even at a standstill, so nobody can wedge
 
+/**
+ * The tow.
+ *
+ * Sit close behind somebody and the air they are pushing out of the way is air
+ * you do not have to. Small on purpose - seven per cent, and only right in the
+ * middle of it - because the point is not to make following easy, it is to stop
+ * a quick driver disappearing over the horizon on lap one and racing nobody for
+ * the next two minutes.
+ *
+ * It works for the CPU too. A tow that only the player got would be a handout;
+ * one everybody gets is a reason for the field to stay together, which is the
+ * whole idea.
+ */
+// About ten car lengths. Measured at 155 - half a second of racing - the tow
+// vanished the moment a corner opened the smallest gap, so it held a pack that
+// was already nose to tail together and did nothing whatever about a leader who
+// had gone. A following distance you can actually hold is the point.
+export const SLIP_RANGE = 280; // how far back it reaches
+export const SLIP_WIDTH = 32; // and how far off their line you can sit
+export const SLIP_MAX = 0.07; // the share of extra speed, dead centre
+export const SLIP_MIN_SPEED = 150; // no tow at a crawl: there is no air to punch
+
+/**
+ * The turbo, and the one rule that makes it worth having.
+ *
+ * It is dropped a little way up the road from the *last* car on the track, and
+ * only when the leader is far enough ahead not to be near it. Then it fades in
+ * about four seconds. So if you are at the back you keep finding them, and if
+ * you are running away at the front you never see one - not because the game
+ * refuses you, but because by the time it appears you are already past.
+ *
+ * Anybody who is actually there can pick one up, including the leader if the
+ * field has closed right up. That is the honest version: it is a thing lying on
+ * the road, not a rule about who deserves what.
+ */
+export const BOOST_EVERY = 190; // ticks between drops
+export const BOOST_MAX = 3; // on the table at once
+export const BOOST_AHEAD = 190; // dropped this far up the road from whoever it is for
+// ...and only if the leader is already this far past that spot. Between them the
+// two numbers say the field has to have spread out by about 310 pixels, which is
+// a second of racing, before anybody is offered any help. Nose to tail there is
+// simply nowhere to put one that is ahead of the last car and behind the leader,
+// and that is the right answer: a field that is together does not need catching
+// up. Set at 300 and 460 it wanted a spread of 760 and four evenly matched cars
+// never once triggered it in a whole race.
+export const BOOST_MIN_GAP = 120;
+export const BOOST_LIFE = 250; // gone in about four seconds
+export const BOOST_R = 28; // how close you have to be to take it
+export const BOOST_TICKS = 85; // how long it lasts once you have
+export const BOOST_POWER = 0.28; // and how much more speed it is worth
+
 // --- The table ---------------------------------------------------------------
 
 /**
@@ -159,15 +210,24 @@ export const CAR_PRESETS = [
  * racing line it wanders, and it is allowed to wander off the road - a car that
  * cannot make a mistake is not an opponent, it is a metronome. `slip` is how
  * late it gets off the throttle for a corner it has seen.
+ *
+ * `nudge` is how much of somebody else's line it is prepared to take. At zero it
+ * drives round you; wound up, it leans on whoever is alongside and squeezes them
+ * towards the outside of the corner. It is not aimed at the player - the
+ * simulation knows which cars are people and deliberately does not look, because
+ * a CPU that only ever elbows the human is a CPU you can feel cheating.
  */
 export const AI_LEVELS = {
   easy: {
-    key: 'easy', label: 'EASY', look: 105, wobble: 34, speed: 0.8, slip: 0.72, react: 8,
+    key: 'easy', label: 'EASY', look: 105, wobble: 34, speed: 0.8, slip: 0.72, react: 8, nudge: 0,
   },
   normal: {
-    key: 'normal', label: 'NORMAL', look: 150, wobble: 17, speed: 0.92, slip: 0.86, react: 4,
+    key: 'normal', label: 'NORMAL', look: 150, wobble: 17, speed: 0.92, slip: 0.86, react: 4, nudge: 0.3,
   },
   hard: {
-    key: 'hard', label: 'HARD', look: 195, wobble: 7, speed: 1, slip: 0.97, react: 1,
+    key: 'hard', label: 'HARD', look: 195, wobble: 7, speed: 1, slip: 0.97, react: 1, nudge: 0.7,
   },
 };
+
+/** How close somebody has to be before a CPU driver starts leaning on them. */
+export const NUDGE_RANGE = 120;
