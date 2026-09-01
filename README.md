@@ -137,14 +137,46 @@ answer.
 
 ## The lap record board
 
-Ten per table, quickest first, kept in your browser and merged with everybody
+Ten per list, quickest first, kept in your browser and merged with everybody
 else's through the relay. Two devices that have never seen each other's laps both
 post their own board and both come away with the same one.
+
+There is a list per table, because a lap of the pool table and a lap of the desk
+are not comparable and never will be. There is also **a list per set of
+opponents** — EASY, NORMAL, HARD, and online — and that one is worth being
+precise about, because the obvious reading of it is wrong.
+
+**The CPU setting does not touch your car.** Grip, acceleration and top speed are
+identical on EASY and HARD; what varies between races is the table, not the
+level. Measured with one fixed driver over ten seeds and all four tables, the
+best lap moved by at most 0.07 of a second between the three settings, and not
+consistently in either direction:
+
+| | vs EASY | vs NORMAL | vs HARD |
+| --- | --- | --- | --- |
+| the breakfast table | 12.18s | 12.20s | **12.13s** |
+| the pool table | 13.35s | 13.35s | 13.35s |
+| the garden path | 14.50s | 14.50s | **14.48s** |
+| the desk | 17.75s | 17.75s | 17.75s |
+
+What the setting does change is the traffic — clear air 96%, 81% and 91% of the
+time, and 0, 25 and 17 bumps a race — and traffic can only ever cost you time,
+because there is no slipstream in this game and another car is never a help. So
+the lists are not measuring how good your car was. They are keeping laps set in
+clear air apart from laps set in a fight, which is the only honest thing to do
+with them on one board.
+
+Online is a list of its own because it has to be. An online race has no CPU
+setting at all — every car is a person — and filing those laps under whichever
+level the menu happened to be showing would be writing down something untrue.
 
 A record has to be a **clean lap**. Falling off, being scooped up, driving into a
 pocket or crossing the line the wrong way all void the lap you are on — the clock
 keeps running, the record does not. That is the difference between a board worth
 racing against and a list of times set by cutting the corner.
+
+The board in the menu is always the one you would be racing for: pick a table,
+pick your opponents, and the list under them is the list your next lap goes on.
 
 Three letters, the way the cabinet asked for them, driven by the game's own
 controls so it works on a phone without throwing a keyboard over the screen.
@@ -318,6 +350,8 @@ corner is a voice you turn off.
   table has cushions worth leaning on.
 - Only four tables, and no track editor, though a track is fifteen numbers and
   adding a fifth is a small job — see `src/game/tracks.js`.
+- No time trial: there is no way to go out on your own and just chase a time,
+  which is the mode a lap record board really wants.
 - No title screen art. The menu sits over the table you are about to race, which
   will do for now.
 - The camera zooms out and stops. On a phone held upright, four cars at full

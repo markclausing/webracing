@@ -72,6 +72,10 @@ const game = {
   transport: null,
   signal: null,
   seat: 0,
+  // Which list a lap set in this race belongs on: the CPU setting, or 'online'.
+  // Kept here rather than in the state, because the simulation has no opinion
+  // about it - four identical cars race the same way whoever is driving them.
+  tier: 'normal',
   humans: [],
   paused: false,
   acc: 0,
@@ -148,6 +152,7 @@ function startLocal({ players }) {
     difficulty,
   });
   game.humans = seats;
+  game.tier = difficulty;
   beginRace(state, new LocalTransport(devices, seats), seats[0] ?? 0);
 }
 
@@ -162,6 +167,7 @@ function startOnline(opts) {
     humans,
   });
   game.humans = [opts.seat];
+  game.tier = 'online';
   beginRace(state, new OnlineTransport({
     signal: opts.signal, devices, seats: opts.cars, localSeat: opts.seat,
   }), opts.seat);
@@ -338,16 +344,16 @@ function drawTitle() {
 
 // --- Lap records -------------------------------------------------------------
 
-const pending = { open: false, entry: null, track: null };
+const pending = { open: false, entry: null, track: null, tier: 'normal' };
 
 const nameEntry = new NameEntry(document.getElementById('hiscoreLetters'), (name) => {
   try {
     globalThis.localStorage?.setItem('webracing.name', name);
   } catch { /* private mode */ }
-  const place = highscores.add(pending.track, { ...pending.entry, name });
+  const place = highscores.add(pending.track, pending.tier, { ...pending.entry, name });
   pending.open = false;
   hiscoreBox.classList.add('hidden');
-  renderScores(pending.track, place);
+  renderScores(pending.track, pending.tier, place);
   document.getElementById('scoresBox').open = true;
   toMenu();
   syncScores();
@@ -395,15 +401,17 @@ function offerRecord() {
     at: Date.now(),
   };
   const track = state.config.track;
-  if (!highscores.qualifies(track, entry)) return false;
+  if (!highscores.qualifies(track, game.tier, entry)) return false;
 
   pending.entry = entry;
   pending.track = track;
+  pending.tier = game.tier;
   pending.open = true;
   const who = game.humans.length > 1 ? `${CAR_NAMES[lap.seat]}, ` : '';
   document.getElementById('hiscoreLine').textContent
-    = `${who}${formatLap(entry.ms)} round ${trackByKey(track).name}: `
-    + `number ${placeOf(highscores.table(track), entry)}`;
+    = `${who}${formatLap(entry.ms)} round ${trackByKey(track).name} `
+    + `${game.tier === 'online' ? 'online' : `against ${game.tier.toUpperCase()}`}: `
+    + `number ${placeOf(highscores.table(track, game.tier), entry)}`;
   hiscoreBox.classList.remove('hidden');
   nameEntry.start(lastName());
   return true;
@@ -430,18 +438,27 @@ async function syncScores() {
     const data = await res.json();
     if (!data?.board) return false;
     highscores.absorb(data.board);
-    renderScores(trackKey);
+    renderScores(trackKey, boardTier());
     return true;
   } catch {
     return false;
   }
 }
 
-function renderScores(track, freshPlace = 0) {
+/**
+ * Which list the menu is showing, which is always the one you would be racing
+ * for: the table you have picked, against the opponents you have picked.
+ */
+function boardTier() {
+  return mode === 'online' ? 'online' : difficulty;
+}
+
+function renderScores(track, tier, freshPlace = 0) {
   const body = document.getElementById('scoresBody');
-  document.getElementById('scoresLevel').textContent = trackByKey(track).name;
+  document.getElementById('scoresLevel').textContent
+    = `${trackByKey(track).name} · ${tier.toUpperCase()}`;
   body.innerHTML = '';
-  const rows = highscores.table(track);
+  const rows = highscores.table(track, tier);
   for (let i = 0; i < rows.length; i++) {
     const tr = document.createElement('tr');
     if (i + 1 === freshPlace) tr.className = 'fresh';
@@ -460,8 +477,10 @@ function renderScores(track, freshPlace = 0) {
   }
   document.getElementById('scoresNote').textContent = rows.length
     ? 'One clean lap. Falling off, being scooped up or going round the wrong way '
-      + 'all void the lap you were on.'
-    : 'Nothing here yet. Turn a clean lap of this table and the board is yours.';
+      + 'all void the lap you were on. The CPU setting does not touch your car - '
+      + 'it changes the traffic, so each set of opponents keeps its own list.'
+    : 'Nothing here yet. Turn a clean lap of this table against these opponents '
+      + 'and the list is yours.';
 }
 
 // --- Changing the keys -------------------------------------------------------
@@ -606,7 +625,7 @@ for (const track of TRACKS) {
 trackSelect.addEventListener('change', () => {
   trackKey = trackSelect.value;
   document.getElementById('trackBlurb').textContent = trackByKey(trackKey).blurb;
-  renderScores(trackKey);
+  renderScores(trackKey, boardTier());
 });
 document.getElementById('trackBlurb').textContent = trackByKey(trackKey).blurb;
 
@@ -623,6 +642,7 @@ document.querySelectorAll('[data-mode]').forEach((btn) => {
       setOnlineStatus('');
     }
     showLocalSeats();
+    renderScores(trackKey, boardTier());
   });
 });
 
@@ -630,6 +650,7 @@ document.querySelectorAll('[data-difficulty]').forEach((btn) => {
   btn.addEventListener('click', () => {
     difficulty = btn.dataset.difficulty;
     document.querySelectorAll('[data-difficulty]').forEach((b) => b.classList.toggle('active', b === btn));
+    renderScores(trackKey, boardTier());
   });
 });
 
@@ -817,7 +838,7 @@ addEventListener('pointerdown', startMusicOnFirstGesture);
 addEventListener('keydown', startMusicOnFirstGesture);
 
 showLocalSeats();
-renderScores(trackKey);
+renderScores(trackKey, boardTier());
 syncScores();
 sizeCanvas();
 requestAnimationFrame(frame);

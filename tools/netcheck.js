@@ -264,8 +264,13 @@ async function main() {
       'ping and pong get through in every direction');
     check(peers.every((p) => p.state.cars.every((c) => c.lap >= 1)),
       'every car got off the grid and over the line');
-    check(peers.every((p) => p.state.best !== null),
-      'and somebody turned a clean lap over the network');
+    // Whether a clean lap happened at all depends on how the scripted drivers
+    // got on, which is not what this test is about. That all four machines agree
+    // about it is.
+    const fastest = peers.map((p) => (p.state.best
+      ? `${p.state.best.seat}@${p.state.best.ticks}` : 'none'));
+    check(new Set(fastest).size === 1,
+      `all four agree on the fastest lap of the race (${fastest[0]})`);
 
     // --- Somebody closes their tab ------------------------------------------
     //
@@ -304,22 +309,31 @@ async function main() {
     };
     const row = (id, name, ms, at) => ({ id, name, ms, at });
 
-    const afterPhone = await post({ breakfast: [row('p1', 'AAA', 14200, 1000)] });
-    const afterLaptop = await post({ breakfast: [row('l1', 'BBB', 13100, 2000)] });
+    const LIST = 'breakfast:hard';
+    const afterPhone = await post({ [LIST]: [row('p1', 'AAA', 14200, 1000)] });
+    const afterLaptop = await post({ [LIST]: [row('l1', 'BBB', 13100, 2000)] });
 
-    check(afterPhone.breakfast.length === 1,
+    check(afterPhone[LIST].length === 1,
       'the first device is not sent laps it should not have seen yet');
-    check(afterLaptop.breakfast.length === 2,
+    check(afterLaptop[LIST].length === 2,
       'two devices post their own boards and end up with one');
-    check(afterLaptop.breakfast[0].name === 'BBB',
+    check(afterLaptop[LIST][0].name === 'BBB',
       'and the quicker lap is at the top of it');
 
     const junk = await post({
-      breakfast: [row('bad1', 'ZZZ', 12, 3000), { id: 'bad2', name: 'X' }, 'nonsense'],
+      [LIST]: [row('bad1', 'ZZZ', 12, 3000), { id: 'bad2', name: 'X' }, 'nonsense'],
     });
-    check(junk.breakfast.length === 2, 'the server refuses impossible laps and nonsense rows');
+    check(junk[LIST].length === 2, 'the server refuses impossible laps and nonsense rows');
 
-    await waitFor(() => announced.length >= 2, 'the relay never posted to the webhook', 3000);
+    // A browser that has not been opened since the board was one list per table.
+    const legacy = await post({ breakfast: [row('old', 'M-A', 11767, 4000)] });
+    check(legacy['breakfast:normal']?.[0]?.name === 'M-A',
+      'a lap from the old one-list-per-table board is kept, under NORMAL');
+
+    // Three records landed: two devices' own laps and one from the old board
+    // shape. Waiting for two and then asserting three is a race the test loses
+    // about half the time.
+    await waitFor(() => announced.length >= 3, 'the relay never posted to the webhook', 4000);
     const said = announced.map((a) => a.embeds?.[0]?.description || '').join(' ');
     check(/AAA/.test(said) && /BBB/.test(said),
       'both new records are announced, by name');
@@ -327,10 +341,11 @@ async function main() {
     check(/breakfast table/.test(said), 'and the table they were set on');
     check(announced.every((a) => a.username === 'WebRacing' && a.embeds?.[0]?.url),
       'each post names the game and links to it, because three games share a channel');
-    check(announced.length === 2, `once each, not more (${announced.length} posts for 2 records)`);
+    check(announced.length === 3, `once each, not more (${announced.length} posts)`);
 
     const stored = await (await fetch(boardUrl)).json();
-    check(stored.board.breakfast.length === 2, 'and the board is kept on disk and readable');
+    check(stored.board['breakfast:hard'].length === 2,
+      'and the board is kept on disk and readable');
 
     process.exitCode = failed ? 1 : 0;
     console.log('');

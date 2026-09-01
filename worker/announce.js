@@ -11,7 +11,7 @@
  * football result to anybody who was not already playing.
  */
 
-import { LEVELS } from '../src/highscores.js';
+import { LEVELS, partsOf } from '../src/highscores.js';
 
 /** How many records one post will mention before it just counts the rest. */
 const MAX_LINES = 3;
@@ -22,6 +22,14 @@ const NAMES = {
   pool: 'the pool table',
   garden: 'the garden path',
   desk: 'the desk',
+};
+
+/** And who they were up against, which is what the list is keyed by. */
+const AGAINST = {
+  easy: ' against EASY',
+  normal: ' against NORMAL',
+  hard: ' against HARD',
+  online: ', online',
 };
 
 /** "1:04.83". The same format the game shows. */
@@ -56,15 +64,17 @@ export function newRows(before, after) {
 }
 
 function ordinal(n) {
-  if (n === 1) return '**fastest lap on the table**';
+  if (n === 1) return '**fastest lap on the list**';
   if (n === 2) return 'second';
   if (n === 3) return 'third';
   return `number ${n}`;
 }
 
 function line({ entry, level, place }) {
-  const where = NAMES[level] || level;
-  return `🏁 **${entry.name}** went round ${where} in **${lap(entry.ms)}** — ${ordinal(place)}`;
+  const { track, tier } = partsOf(level);
+  const where = NAMES[track] || track;
+  return `🏁 **${entry.name}** went round ${where}${AGAINST[tier] ?? ''} `
+    + `in **${lap(entry.ms)}** — ${ordinal(place)}`;
 }
 
 /**

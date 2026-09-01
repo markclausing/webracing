@@ -15,7 +15,7 @@ import { TRACKS, loadTrack } from '../src/game/tracks.js';
 import { bendAhead, gapAround, nearest, pointAt } from '../src/game/path.js';
 import { BTN, DROP_GAP, TICK_RATE } from '../src/constants.js';
 import {
-  Highscores, cleanEntry, merge, placeOf, qualifies, sortTable,
+  Highscores, LEVELS, TIERS, cleanEntry, levelOf, merge, partsOf, placeOf, qualifies, sortTable,
 } from '../src/highscores.js';
 import * as commentary from '../src/commentary.js';
 import { announcement, newRows } from '../worker/announce.js';
@@ -297,12 +297,37 @@ check(!qualifies(full, { ms: 99000 }), 'and a slower one does not');
 check(placeOf(full, { ms: 11000 }) === 1, 'a new best lap goes to the top');
 
 {
-  const mine = { breakfast: [{ id: 'x', name: 'AAA', ms: 14000, at: 1 }] };
-  const theirs = { breakfast: [{ id: 'x', name: 'AAA', ms: 14000, at: 1 }] };
-  check(merge(mine, theirs).breakfast.length === 1,
+  const mine = { 'breakfast:hard': [{ id: 'x', name: 'AAA', ms: 14000, at: 1 }] };
+  const theirs = { 'breakfast:hard': [{ id: 'x', name: 'AAA', ms: 14000, at: 1 }] };
+  check(merge(mine, theirs)['breakfast:hard'].length === 1,
     'the same lap from two devices is one row, not two');
-  check(merge(mine, { breakfast: [{ id: 'y', name: 'BBB', ms: 13000, at: 2 }] })
-    .breakfast.length === 2, 'and two different laps are two');
+  check(merge(mine, { 'breakfast:hard': [{ id: 'y', name: 'BBB', ms: 13000, at: 2 }] })
+    ['breakfast:hard'].length === 2, 'and two different laps are two');
+  check(merge(mine, { 'breakfast:easy': [{ id: 'z', name: 'CCC', ms: 13000, at: 2 }] })
+    ['breakfast:hard'].length === 1, 'and a lap against other opponents is another list');
+}
+
+// --- One list per table per set of opponents ---------------------------------
+
+check(LEVELS.length === TRACKS.length * TIERS.length,
+  `there is a list for every table and every set of opponents (${LEVELS.length})`);
+check(TIERS.includes('online'),
+  'including one for online, which has no CPU setting to file it under');
+check(levelOf('pool', 'hard') === 'pool:hard', 'a list is named by both');
+check(partsOf('pool:hard').track === 'pool' && partsOf('pool:hard').tier === 'hard',
+  'and can be taken apart again for putting on screen');
+check(levelOf('nonsense', 'hard') === LEVELS[0], 'a list nobody has heard of is refused');
+
+// The first version of the board was keyed by table alone, and there are boards
+// in browsers and on a server filed that way. They must not be thrown away.
+{
+  const legacy = { breakfast: [{ id: 'old', name: 'M-A', ms: 11767, at: 1788268379165 }] };
+  const moved = merge({}, legacy);
+  check(moved['breakfast:normal'].length === 1 && moved['breakfast:normal'][0].name === 'M-A',
+    'a lap from the old one-list-per-table board is kept, under NORMAL');
+  check(Object.values(moved).flat().length === 1, 'and only once');
+  check(merge(moved, legacy)['breakfast:normal'].length === 1,
+    'and the same browser posting it again does not double it up');
 }
 
 {
@@ -313,10 +338,11 @@ check(placeOf(full, { ms: 11000 }) === 1, 'a new best lap goes to the top');
     getItem: (k) => store.get(k) ?? null,
     setItem: (k, v) => store.set(k, v),
   });
-  board.add('desk', { id: 'a', name: 'ABC', ms: 19000, at: 1 });
-  check(board.table('desk').length === 1, 'a lap can be added without a browser');
-  check(board.table('pool').length === 0, 'and it does not appear under another table');
-  check(new Highscores({ getItem: (k) => store.get(k) ?? null }).table('desk').length === 1,
+  board.add('desk', 'hard', { id: 'a', name: 'ABC', ms: 19000, at: 1 });
+  check(board.table('desk', 'hard').length === 1, 'a lap can be added without a browser');
+  check(board.table('pool', 'hard').length === 0, 'and it does not appear under another table');
+  check(board.table('desk', 'easy').length === 0, 'nor against other opponents');
+  check(new Highscores({ getItem: (k) => store.get(k) ?? null }).table('desk', 'hard').length === 1,
     'and it is still there when the page is loaded again');
 }
 
@@ -390,16 +416,16 @@ for (const level of ['easy', 'normal', 'hard']) {
 // same channel: a message that does not say which game it came from is noise.
 
 {
-  const before = { breakfast: [], pool: [], garden: [], desk: [] };
+  const before = {};
   const after = {
-    ...before,
-    pool: [
+    'pool:hard': [
       { id: 'a', name: 'MJC', ms: 13350, at: 2 },
       { id: 'b', name: 'ACE', ms: 14100, at: 1 },
     ],
+    'desk:online': [{ id: 'c', name: 'BOT', ms: 19880, at: 3 }],
   };
   const rows = newRows(before, after);
-  check(rows.length === 2, 'both new rows are news');
+  check(rows.length === 3, 'every new row is news');
   check(rows[0].place === 1 && rows[0].entry.name === 'MJC', 'and the quickest is first');
   check(newRows(after, after).length === 0, 'the same board twice is not news');
 
@@ -407,8 +433,10 @@ for (const level of ['easy', 'normal', 'hard']) {
   const said = post.embeds[0].description;
   check(post.username === 'WebRacing' && /WebRacing/.test(post.embeds[0].title),
     'the post says which game it came from');
-  check(/MJC/.test(said) && /0:13\.35/.test(said) && /pool table/.test(said),
-    `who, how quick and where ("${said.split('\n')[0]}")`);
+  check(/MJC/.test(said) && /0:13\.35/.test(said) && /pool table against HARD/.test(said),
+    `who, how quick, where and against whom ("${said.split('\n')[0]}")`);
+  check(/the desk, online/.test(said),
+    'and an online lap is not filed against a CPU setting it never raced');
   check(post.allowed_mentions.parse.length === 0,
     'and it cannot ping anybody, whatever somebody calls themselves');
 }
