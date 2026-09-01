@@ -320,6 +320,38 @@ check(placeOf(full, { ms: 11000 }) === 1, 'a new best lap goes to the top');
     'and it is still there when the page is loaded again');
 }
 
+// --- The CPU actually uses its wobble ----------------------------------------
+//
+// A regression test for a real one. The re-pick used to hang on a pattern in the
+// global tick, which sits below the reaction-time return in aiMask, so a driver
+// that only thinks every fourth or eighth tick never landed on the ticks the
+// pattern named. Measured: on EASY not one of the four cars ever changed its
+// line for a whole race, and on NORMAL only one did. They picked an offset on
+// the grid and held it to the flag - which is exactly the metronome `wobble`
+// exists to prevent, and it is invisible unless you go looking.
+
+for (const level of ['easy', 'normal', 'hard']) {
+  const state = createRace({
+    seed: 5, track: 'breakfast', laps: 3, humans: [false, false, false, false], difficulty: level,
+  });
+  const moves = state.cars.map(() => 0);
+  const last = state.cars.map(() => undefined);
+  let guard = 0;
+  while (state.phase !== 'over' && guard++ < MAX) {
+    step(state, [0, 0, 0, 0]);
+    state.cars.forEach((car, i) => {
+      if (car.drift !== last[i]) {
+        moves[i]++;
+        last[i] = car.drift;
+      }
+    });
+  }
+  const seconds = state.tick / TICK_RATE;
+  check(moves.every((m) => m > seconds / 2),
+    `${level.toUpperCase()}: every car keeps choosing a new line (${moves.join(', ')} times in `
+    + `${seconds.toFixed(0)}s)`);
+}
+
 // --- The commentator ---------------------------------------------------------
 //
 // The synthesiser only knows the phonemes it is given, and `phrase()` silently

@@ -19,6 +19,9 @@ import {
 import { bendAhead, pointAt } from './path.js';
 import { nextRandom } from '../util.js';
 
+/** How long a driver holds a line before choosing another one, in ticks. */
+const DRIFT_EVERY = 40;
+
 /** Shortest way round from one heading to another, in radians. */
 function wrapAngle(a) {
   let v = a;
@@ -46,9 +49,17 @@ export function aiMask(state, car) {
   // Where on the road it wants to be. Re-picked now and then rather than every
   // tick, so it drifts across the road the way a person does instead of
   // vibrating about the centreline.
-  // Staggered by seat, or four identical drivers re-pick their line on the same
-  // tick and the field runs round nose to tail in grid order for three laps.
-  if ((state.tick + car.index * 13) % 40 === 0 || car.drift === undefined) {
+  //
+  // On the car's own clock, and that is the whole point. This used to hang on a
+  // pattern in the global tick - `(tick + seat * 13) % 40 === 0` - which sits
+  // below the reaction-time return above, so a driver that only thinks every
+  // fourth or eighth tick never landed on the ticks the pattern named. Measured:
+  // on EASY not one of the four cars ever changed its line for a whole race, and
+  // on NORMAL only one of them did. They picked an offset on the grid and held
+  // it to the flag, which is exactly the metronome `wobble` exists to prevent.
+  // `driftAt` starts staggered per seat, so they do not all move together.
+  if (car.drift === undefined || state.tick - car.driftAt >= DRIFT_EVERY) {
+    car.driftAt = state.tick;
     car.drift = (nextRandom(state) * 2 - 1) * car.ai.wobble;
   }
 

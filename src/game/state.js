@@ -126,6 +126,10 @@ function makeCar(state, index, human, ai) {
     // The CPU only changes its mind every few ticks; this is what it decided.
     want: 0,
     thinkAt: -99,
+    // When it last chose a line across the road. Staggered on the grid, so four
+    // identical drivers do not all move over at the same moment and run round
+    // nose to tail in grid order for three laps.
+    driftAt: -index * 11,
   };
 }
 
