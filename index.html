@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>WebRacing</title>
+  <link rel="stylesheet" href="styles.css">
+  <meta name="theme-color" content="#140f16">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+  <div id="app">
+    <canvas id="table" tabindex="0"></canvas>
+
+    <div id="touch" class="hidden">
+      <div id="stick"><div id="knob"></div></div>
+      <div id="touchButtons">
+        <button id="btnBrake" type="button">BRAKE</button>
+        <button id="btnGas" type="button">GAS</button>
+      </div>
+    </div>
+
+    <div id="menu" class="overlay">
+      <div class="panel">
+        <h1>WEB<span>RACING</span></h1>
+        <p class="tag">HTML / JavaScript &middot; up to four, on one table</p>
+
+        <div class="row">
+          <label>Players</label>
+          <div class="btns">
+            <button data-mode="1" class="active">1 player</button>
+            <button data-mode="2">2 players</button>
+            <button data-mode="online">Online</button>
+          </div>
+        </div>
+
+        <p id="localSeats" class="fineprint"></p>
+
+        <div class="row" id="trackRow">
+          <label>Table</label>
+          <select id="track"></select>
+        </div>
+        <p id="trackBlurb" class="fineprint"></p>
+
+        <div class="row" id="difficultyRow">
+          <label>CPU skill</label>
+          <div class="btns">
+            <button data-difficulty="easy">Easy</button>
+            <button data-difficulty="normal" class="active">Normal</button>
+            <button data-difficulty="hard">Hard</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <label for="laps">Laps</label>
+          <select id="laps">
+            <option value="2">Sprint (2)</option>
+            <option value="3" selected>Race (3)</option>
+            <option value="5">Long (5)</option>
+          </select>
+        </div>
+
+        <div class="row">
+          <label>Sound</label>
+          <div class="btns">
+            <button data-sound="on" class="active">On</button>
+            <button data-sound="off">Off</button>
+          </div>
+        </div>
+
+        <div class="row">
+          <label>Commentary</label>
+          <div class="btns">
+            <button data-talk="on" class="active">On</button>
+            <button data-talk="off">Off</button>
+          </div>
+        </div>
+
+        <details id="controlsBox">
+          <summary>Controls</summary>
+          <table class="keys" id="keysTable">
+            <thead>
+              <tr><th></th><th>Player 1 (red)</th><th>Player 2 (blue)</th></tr>
+            </thead>
+            <tbody id="keysBody"></tbody>
+            <tfoot>
+              <tr>
+                <td>Presets</td>
+                <td><select data-preset="0" class="preset"></select></td>
+                <td><select data-preset="1" class="preset"></select></td>
+              </tr>
+            </tfoot>
+          </table>
+          <p id="bindHint" class="status">Click a key to change it.</p>
+          <ul class="hints">
+            <li><b>Brake into the corner, not through it.</b> The brake takes most
+              of the grip away with it, so a stab of it going into a hairpin steps
+              the back out and points you at the exit. That is the whole trick of
+              the game.</li>
+            <li><b>A slide is not free.</b> Scrubbing sideways takes speed out of
+              the car, so the fastest way round is not the most spectacular one.
+              Listen to the tyres.</li>
+            <li><b>Bump people.</b> A shove at the right moment puts somebody in
+              the milk, off the table, or into a pocket, and there is nothing in
+              the rules about it.</li>
+            <li><b>Fall a screen behind and you are scooped up</b> and put back
+              just behind the pack. It costs you the lap you were on and every
+              record it might have been, but it does not cost you the race.</li>
+            <li><b>Off the table is worse.</b> That is a second and a half
+              standing still while everybody else goes past.</li>
+            <li><b>Every key can be changed</b> here, or take a preset. Gamepads
+              work without being set up: the first two share with the keyboard,
+              the third and fourth get their own seat.</li>
+          </ul>
+        </details>
+
+        <details id="scoresBox">
+          <summary>Lap records <span id="scoresLevel" class="shape"></span></summary>
+          <table class="scores"><tbody id="scoresBody"></tbody></table>
+          <p id="scoresNote" class="fineprint"></p>
+        </details>
+
+        <div id="onlineSetup" class="hidden">
+          <p class="explain">
+            One player opens a race and passes on the code; up to three others
+            enter it. Whoever opens it picks the table and starts the race when
+            everybody is in.
+          </p>
+          <div id="roomCode" class="code hidden"></div>
+          <div id="lobby" class="lobby hidden"></div>
+          <p id="onlineStatus" class="status"></p>
+          <div class="joinrow">
+            <input id="joinCode" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false">
+            <button id="join">JOIN</button>
+          </div>
+          <p class="fineprint">
+            Needs a relay: run <code>npm start</code> yourself, or put the address of a
+            Cloudflare Worker in <code>src/config.js</code>. See the README.
+          </p>
+        </div>
+
+        <div class="panelFooter">
+          <button id="start" class="primary">RACE</button>
+          <button id="host" class="primary hidden">OPEN A NEW RACE</button>
+          <button id="go" class="primary hidden">START THE RACE</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="hiscore" class="overlay hidden">
+      <div class="panel small">
+        <h2>LAP RECORD</h2>
+        <p id="hiscoreLine" class="status"></p>
+        <div id="hiscoreLetters" class="letters"></div>
+        <p class="fineprint">
+          Up and down for the letter, left and right to move along, gas to confirm.
+          Typing works too.
+        </p>
+      </div>
+    </div>
+
+    <div id="pause" class="overlay hidden">
+      <div class="panel small">
+        <h2>PAUSED</h2>
+        <p class="status">Esc to carry on.</p>
+        <button id="quit" class="primary">BACK TO THE MENU</button>
+      </div>
+    </div>
+
+    <div id="netend" class="overlay hidden">
+      <div class="panel small">
+        <h2 id="netendTitle">RACE OVER</h2>
+        <p id="netendText" class="status"></p>
+        <button id="netendBack" class="primary">BACK TO THE MENU</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

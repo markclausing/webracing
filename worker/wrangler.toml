@@ -1,0 +1,19 @@
+# Deploy with:  npx wrangler login  &&  npx wrangler deploy
+#
+# A Worker of its own rather than websoccer's or webtennis's, on purpose. The
+# board lives in a single Durable Object under one key, so one Worker serving
+# every game would mean one table with football, tennis and lap times mixed into
+# it. Three Workers, three boards - and they can still post into the same Discord
+# channel, because that is only a webhook address.
+
+name = "webracing"
+main = "index.js"
+compatibility_date = "2025-04-01"
+
+[[durable_objects.bindings]]
+name = "ARENA"
+class_name = "Arena"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Arena"]
