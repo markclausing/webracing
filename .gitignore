@@ -3,3 +3,7 @@ node_modules/
 *.log
 highscores.json
 .wrangler/
+
+# The Worker's admin key, if you keep a copy on disk. It is the only thing
+# standing between a public board and anybody who wants to wipe it.
+worker/.admin-key
