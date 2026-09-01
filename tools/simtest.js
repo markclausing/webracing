@@ -14,6 +14,7 @@ import { step } from '../src/game/sim.js';
 import { TRACKS, loadTrack } from '../src/game/tracks.js';
 import { bendAhead, gapAround, nearest, pointAt } from '../src/game/path.js';
 import { aiMask } from '../src/game/ai.js';
+import { TouchDrive } from '../src/touchdrive.js';
 import {
   AI_LEVELS, BOOST_MAX, BOOST_TICKS, BTN, DROP_GAP, SLIP_RANGE, SLIP_WIDTH, TICK_RATE,
 } from '../src/constants.js';
@@ -571,6 +572,73 @@ for (const level of ['easy', 'normal', 'hard']) {
   check(moves.every((m) => m > seconds / 2),
     `${level.toUpperCase()}: every car keeps choosing a new line (${moves.join(', ')} times in `
     + `${seconds.toFixed(0)}s)`);
+}
+
+// --- Steering with a thumb ---------------------------------------------------
+//
+// The simulation takes one bit per direction and always will: that bitmask is
+// what goes over the wire, and it is what makes a lap driven on a phone
+// comparable with one driven on a keyboard. A stick under a thumb needs
+// something finer than all or nothing, so it presses the bit for only some of
+// the ticks, and the car - which smooths its steering towards whatever is being
+// asked for - settles at whatever share that is.
+
+{
+  const wheel = (at) => {
+    const drive = new TouchDrive();
+    drive.wheel = at;
+    let on = 0;
+    let longest = 0;
+    let run = 0;
+    for (let i = 0; i < 600; i++) {
+      drive.advance();
+      if (drive.mask & (BTN.LEFT | BTN.RIGHT)) {
+        on++;
+        run++;
+        if (run > longest) longest = run;
+      } else {
+        run = 0;
+      }
+    }
+    return { share: on / 600, longest };
+  };
+
+  check(wheel(0).share === 0, 'a wheel that is straight presses nothing');
+  check(wheel(1).share === 1, 'and one on full lock presses every tick');
+  for (const at of [0.25, 0.5, 0.75]) {
+    const { share } = wheel(at);
+    check(Math.abs(share - at) < 0.01,
+      `${at} of a turn presses ${(share * 100).toFixed(0)}% of the ticks`);
+  }
+  // Spread out rather than blocked, or the car feels it as a wobble instead of
+  // as a steady half a turn.
+  check(wheel(0.5).longest === 1, 'and it is spread evenly rather than in blocks');
+
+  // What the car does with it, which is the only thing that matters.
+  const lock = (at) => {
+    const drive = new TouchDrive();
+    drive.wheel = at;
+    const state = createRace({ seed: 2, track: 'breakfast', laps: 9, cars: 2, humans: [true, false] });
+    let lights = 0;
+    while (state.phase === 'countdown' && lights++ < MAX) step(state, [0, 0, 0, 0]);
+    let sum = 0;
+    let n = 0;
+    // Coasting, so nothing crashes and has its steering reset out from under
+    // the measurement.
+    for (let i = 0; i < TICK_RATE * 3; i++) {
+      drive.advance();
+      step(state, [drive.mask, 0, 0, 0]);
+      if (i > TICK_RATE) {
+        sum += Math.abs(state.cars[0].steer);
+        n++;
+      }
+    }
+    return sum / n;
+  };
+  for (const at of [0.3, 0.5, 0.85]) {
+    check(Math.abs(lock(at) - at) < 0.02,
+      `${at} of a turn of the wheel is ${lock(at).toFixed(2)} of lock on the car`);
+  }
 }
 
 // --- The commentator ---------------------------------------------------------

@@ -11,6 +11,8 @@ html, body {
   overscroll-behavior: none;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
   user-select: none;
 }
 
@@ -324,29 +326,65 @@ details .keys { margin-top: 0; }
   padding: 0 max(14px, env(safe-area-inset-left)) max(14px, env(safe-area-inset-bottom));
 }
 
-#stick, #touchButtons { pointer-events: auto; touch-action: none; }
+/* touch-action does not inherit, so saying it on the box the buttons sit in
+   does nothing for the buttons. Without it on the button itself, holding the
+   throttle down is a long press, and a long press on a phone is a text
+   selection - the callout comes up and the car stops accelerating. */
+#stick, #touchButtons, #touchButtons button, #knob {
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
 
+#knob { pointer-events: none; }
+
+/* A track rather than a dish, because it is a wheel: it steers and does nothing
+   else, and a round pad invites a thumb to push up and down for something that
+   is not there. Wide enough that the whole range of lock is a comfortable
+   sweep - the knob travels 58px each way from the middle. */
+/* Whatever is left once the pedals have had theirs. Fixed at 224px it ran
+   underneath the brake on a 390px phone and a long way under it on anything
+   narrower; the throw is measured off the element at run time, so the wheel
+   simply gets shorter rather than losing its range. */
 #stick {
   position: absolute;
-  left: max(20px, env(safe-area-inset-left));
+  left: max(14px, env(safe-area-inset-left));
   bottom: max(34px, calc(env(safe-area-inset-bottom) + 22px));
-  width: 130px;
-  height: 130px;
+  width: min(230px, calc(100vw - 200px));
+  height: 88px;
   border: 3px solid rgba(255, 255, 255, 0.35);
-  border-radius: 50%;
+  border-radius: 44px;
   background: rgba(0, 0, 0, 0.28);
+}
+
+/* Where straight is, so you can find it without looking away from the road for
+   long enough to matter. */
+#stick::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 26%;
+  z-index: 0;
+  width: 2px;
+  height: 48%;
+  background: rgba(255, 255, 255, 0.3);
 }
 
 #knob {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: 56px;
-  height: 56px;
+  z-index: 1;
+  width: 62px;
+  height: 62px;
   margin: 0;
   transform: translate(-50%, -50%);
   border-radius: 50%;
-  background: rgba(232, 255, 77, 0.8);
+  /* Opaque: at 80% the centre mark showed through it and the knob looked like it
+     had a slot in it. */
+  background: rgb(232, 255, 77);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
@@ -371,8 +409,8 @@ details .keys { margin-top: 0; }
    thumb; BRAKE is the one you stab going into a corner and sits above and
    inside, where a stab can reach it without letting go of the throttle. */
 #btnGas {
-  width: 112px;
-  height: 112px;
+  width: 96px;
+  height: 96px;
   font-size: 15px;
   background: rgba(232, 255, 77, 0.85);
   color: #241b2e;
@@ -380,9 +418,9 @@ details .keys { margin-top: 0; }
 }
 
 #btnBrake {
-  width: 76px;
-  height: 76px;
-  margin-bottom: 26px;
+  width: 64px;
+  height: 64px;
+  margin-bottom: 24px;
   background: rgba(120, 42, 52, 0.85);
   color: #f6e6e8;
   border-color: rgba(255, 255, 255, 0.35);

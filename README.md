@@ -39,9 +39,16 @@ Then open http://localhost:5173/. There is no `npm install`.
 | Pause           | `Esc`          |                 |
 
 Every key can be changed in the menu. Gamepads need no setting up: the first two
-share with the keyboard players, a third and fourth get seats of their own. On a
-phone you get a stick, GAS and BRAKE, with the camera fitted into the space above
-them rather than behind them.
+share with the keyboard players, a third and fourth get seats of their own.
+
+On a phone you get a wheel, GAS and BRAKE, with the camera fitted into the space
+above them rather than behind them. The wheel steers and nothing else — a
+diagonal on it will not quietly lift you off the throttle — and it is
+proportional: half a thumb's travel is about a quarter of a turn of lock. The
+simulation still takes one bit per direction, because that bitmask is what goes
+over the wire and what makes a lap set on a phone comparable with one set on a
+keyboard; the phone sends it for a share of the ticks instead of all of them, and
+the car settles at whatever share that is.
 
 ## How it drives
 

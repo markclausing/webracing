@@ -10,7 +10,8 @@ import { FRAME_TIME, MAX_CARS, TOP_SPEED } from './constants.js';
 import {
   ACTIONS, InputDevices, PRESETS, findConflicts, keyLabel, loadBindings, saveBindings,
 } from './input.js';
-import { TouchControls, isTouchDevice } from './touch.js';
+import { isTouchDevice } from './touch.js';
+import { TouchDrive } from './touchdrive.js';
 import { createRace, formatLap, lapMs } from './game/state.js';
 import { step } from './game/sim.js';
 import { TRACKS, loadTrack, trackByKey } from './game/tracks.js';
@@ -47,7 +48,7 @@ const devices = new InputDevices(bindings);
 // Without this nothing is listening to the keyboard at all - the lights go
 // green, and then four cars sit there with the handbrake on.
 devices.attach();
-const touch = new TouchControls();
+const touch = new TouchDrive();
 const renderer = new Renderer(canvas);
 const highscores = new Highscores(globalThis.localStorage);
 
@@ -61,8 +62,8 @@ if (onTouchDevice) {
     root: document.getElementById('touch'),
     stick: document.getElementById('stick'),
     knob: document.getElementById('knob'),
-    kick: document.getElementById('btnGas'),
-    swap: document.getElementById('btnBrake'),
+    gas: document.getElementById('btnGas'),
+    brake: document.getElementById('btnBrake'),
   });
   devices.touch = touch;
 }
@@ -223,6 +224,10 @@ function frame(now) {
     let guard = 0;
     while (game.acc >= FRAME_TIME / 1000 && guard < 8) {
       const tick = game.state.tick;
+      // The wheel decides what to press this tick before anybody reads it. It
+      // sends a fraction of the ticks rather than all of them, which is how one
+      // bit of steering comes out as half a turn of lock.
+      touch.advance();
       game.transport.sample(tick);
       if (!game.transport.ready(tick)) break;
       const inputs = game.transport.poll(tick);
