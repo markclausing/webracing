@@ -231,6 +231,11 @@ rather than an empty table. A screenshot taken by hand is out of date the day
 after somebody changes the colour of the road; one that can be retaken with a
 single command tends actually to be retaken.
 
+The app icons are drawn the same way, by `node tools/make-icons.js`. A PNG is a
+header, one zlib stream and a trailer, and node has zlib built in - so they are
+written by hand rather than pulled from a library, they take their colours from
+`constants.js`, and running it again produces the same bytes.
+
 `test:sim` checks the things that are cheap to get subtly wrong: that the loop
 through each table is evenly spaced enough to search and never runs into itself,
 that a race always reaches a finish, that a player who does nothing at all cannot
@@ -313,8 +318,8 @@ corner is a voice you turn off.
   table has cushions worth leaning on.
 - Only four tables, and no track editor, though a track is fifteen numbers and
   adding a fifth is a small job — see `src/game/tracks.js`.
-- No icons and no title screen art. The menu sits over the table you are about
-  to race, which will do for now.
+- No title screen art. The menu sits over the table you are about to race, which
+  will do for now.
 - The camera zooms out and stops. On a phone held upright, four cars at full
   spread are small.
 
