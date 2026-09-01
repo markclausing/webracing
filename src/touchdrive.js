@@ -29,6 +29,7 @@
 
 import { TouchControls } from './touch.js';
 import { BTN } from './constants.js';
+import { blend } from './assist.js';
 
 /** How far the thumb moves for full lock, in CSS pixels each way. */
 const THROW = 46;
@@ -86,6 +87,13 @@ export class TouchDrive extends TouchControls {
      * it. So the button becomes the thing you decide.
      */
     this.auto = true;
+    /**
+     * How much the road is allowed to steer for you, 0 to 1, and where it wants
+     * to go. `road` is put here once a tick by whoever is running the game -
+     * this file has no business knowing what a track is.
+     */
+    this.assist = 0;
+    this.road = 0;
   }
 
   /** @param {{root, stick, knob, gas, brake}} el */
@@ -185,13 +193,16 @@ export class TouchDrive extends TouchControls {
    * on-on-off-off-off repeated, which the car would feel as a wobble.
    */
   advance() {
+    // What the thumb is asking for, once the road has had its say.
+    const asked = blend(this.wheel, this.road, this.assist);
+
     let steer = 0;
-    const want = Math.abs(this.wheel);
-    if (want > 0) {
+    const want = Math.abs(asked);
+    if (want > 0.004) {
       this.spent += want;
       if (this.spent >= 1) {
         this.spent -= 1;
-        steer = this.wheel < 0 ? BTN.LEFT : BTN.RIGHT;
+        steer = asked < 0 ? BTN.LEFT : BTN.RIGHT;
       }
     } else {
       this.spent = 0;

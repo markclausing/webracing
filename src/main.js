@@ -12,6 +12,7 @@ import {
 } from './input.js';
 import { isTouchDevice } from './touch.js';
 import { TouchDrive } from './touchdrive.js';
+import { ASSIST, roadDemand } from './assist.js';
 import { createRace, formatLap, lapMs } from './game/state.js';
 import { step } from './game/sim.js';
 import { TRACKS, loadTrack, trackByKey } from './game/tracks.js';
@@ -80,6 +81,29 @@ function setThrottle(auto) {
 document.querySelectorAll('[data-throttle]').forEach((btn) => {
   btn.addEventListener('click', () => setThrottle(btn.dataset.throttle === 'auto'));
 });
+
+/**
+ * How much the road is allowed to steer for you. Only offered on a phone.
+ *
+ * It is an input aid: it decides which way somebody would have pressed, and the
+ * simulation is handed the same button mask a keyboard produces. Nothing about
+ * the car changes, which it cannot - the netcode and the record board both rest
+ * on every machine driving the identical car.
+ */
+function setAssist(key) {
+  const level = ASSIST[key] || ASSIST.some;
+  touch.assist = level.strength;
+  document.querySelectorAll('[data-assist]').forEach((b) => {
+    b.classList.toggle('active', b.dataset.assist === level.key);
+  });
+  try {
+    globalThis.localStorage?.setItem('webracing.assist', level.key);
+  } catch { /* private mode */ }
+}
+
+document.querySelectorAll('[data-assist]').forEach((btn) => {
+  btn.addEventListener('click', () => setAssist(btn.dataset.assist));
+});
 if (onTouchDevice) {
   touch.attach({
     root: document.getElementById('touch'),
@@ -90,7 +114,9 @@ if (onTouchDevice) {
   });
   // Only worth offering where there is a thumb to save.
   document.getElementById('throttleRow').classList.remove('hidden');
+  document.getElementById('assistRow').classList.remove('hidden');
   setThrottle(globalThis.localStorage?.getItem('webracing.throttle') !== 'hold');
+  setAssist(globalThis.localStorage?.getItem('webracing.assist') || 'some');
   devices.touch = touch;
 }
 
@@ -250,9 +276,11 @@ function frame(now) {
     let guard = 0;
     while (game.acc >= FRAME_TIME / 1000 && guard < 8) {
       const tick = game.state.tick;
-      // The wheel decides what to press this tick before anybody reads it. It
-      // sends a fraction of the ticks rather than all of them, which is how one
-      // bit of steering comes out as half a turn of lock.
+      // The wheel decides what to press this tick before anybody reads it: a
+      // fraction of the ticks rather than all of them, which is how one bit of
+      // steering comes out as half a turn of lock, and mixed with wherever the
+      // road goes if the steering aid is on.
+      touch.road = touch.assist ? roadDemand(game.state, game.seat) : 0;
       touch.advance();
       game.transport.sample(tick);
       if (!game.transport.ready(tick)) break;

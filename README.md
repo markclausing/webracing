@@ -54,6 +54,25 @@ bitmask is what goes over the wire and what makes a lap set on a phone comparabl
 with one set on a keyboard, so the phone presses it for a share of the ticks
 instead of all of them and the car settles at that share.
 
+There is also a **steering aid**, on by default, in two strengths. You say which
+way and it decides how much: a little lock where the corner wants a lot becomes a
+lot, a lot where it wants a little becomes a little, and asking the wrong way
+winds you back towards straight rather than turning the wheel for you. It is
+aimed at the thing that actually makes a phone hard — judging how far to move a
+thumb you cannot feel.
+
+**A hand that is not on the wheel gets nothing**, at any strength, and that part
+is not negotiable. The first version helped hardest when you were asking for
+least, which felt lovely and was an autopilot: measured over 24 races with nobody
+touching the wheel it completed 2.9 laps of 3, finished third of four and set a
+13.18s lap — quicker than the thumb it was meant to be helping. Laps like that
+would have gone on the record board. With a thumb on it, the aid takes falling
+off the road from 4.0 a race to 2.8 and laps completed from 1.6 to 2.6.
+
+All of this is input, not physics. The aid, the automatic throttle and the
+part-pressed steering all decide *what gets pressed*; the car itself is identical
+on every device, because the netcode and the record board both rest on that.
+
 The camera is bounded by how big a car should be rather than by how much table
 should fit, so a phone gets the same size of picture as a laptop and simply sees
 less road either side of it.

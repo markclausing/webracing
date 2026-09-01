@@ -15,6 +15,7 @@ import { TRACKS, loadTrack } from '../src/game/tracks.js';
 import { bendAhead, gapAround, nearest, pointAt } from '../src/game/path.js';
 import { aiMask } from '../src/game/ai.js';
 import { TouchDrive } from '../src/touchdrive.js';
+import { ASSIST, blend, roadDemand } from '../src/assist.js';
 import {
   AI_LEVELS, BOOST_MAX, BOOST_TICKS, BTN, DROP_GAP, SLIP_RANGE, SLIP_WIDTH, TICK_RATE,
 } from '../src/constants.js';
@@ -659,6 +660,79 @@ for (const level of ['easy', 'normal', 'hard']) {
     check(Math.abs(lock(at) - at) < 0.02,
       `${at} of a turn of the wheel is ${lock(at).toFixed(2)} of lock on the car`);
   }
+}
+
+// --- The steering aid --------------------------------------------------------
+//
+// An input aid and nothing else: it decides which way somebody would have
+// pressed, and hands the simulation the same button mask a keyboard produces.
+// Nothing about the car changes, which it cannot - the netcode and the record
+// board both rest on every machine driving the identical car.
+
+{
+  const { strength } = ASSIST.lots;
+
+  check(blend(0.3, 1, 0) === 0.3, 'switched off, what you ask for is what you get');
+
+  // You say which way, the road says how much.
+  check(blend(0.1, 1, strength) > 0.8,
+    'a little lock where the corner wants a lot becomes a lot');
+  check(blend(0.9, 0.2, strength) < 0.4,
+    'and a lot where it wants a little becomes a little');
+  check(blend(0.6, -1, strength) < 0.1 && blend(0.6, -1, strength) >= 0,
+    'asking the wrong way winds you back towards straight');
+  check(Math.sign(blend(0.6, -1, strength)) >= 0,
+    'but never turns the wheel the other way for you');
+
+  // The part that is not negotiable. An earlier version helped hardest when you
+  // were asking for least, which felt lovely and was an autopilot: hands off, it
+  // completed 2.9 laps of 3 and set a quicker lap than the thumb it was meant to
+  // be helping.
+  for (const level of Object.values(ASSIST)) {
+    check(blend(0, 1, level.strength) === 0,
+      `${level.label}: a hand that is not on the wheel gets nothing`);
+    check(blend(0, -1, level.strength) === 0, `${level.label}: in either direction`);
+  }
+
+  // And it is bounded, whatever the road asks for.
+  for (const road of [-2, -1, 0, 1, 2]) {
+    for (const thumb of [-1, -0.4, 0.4, 1]) {
+      const out = blend(thumb, road, strength);
+      check(out >= -1 && out <= 1 && Number.isFinite(out),
+        `thumb ${thumb} against road ${road} stays a real number between -1 and 1 (${out.toFixed(2)})`);
+    }
+  }
+}
+
+{
+  // What it reads off the track. A car pointed straight down the road wants
+  // nothing; one pointed across it wants a lot, the way it is pointed.
+  const state = createRace({ seed: 3, track: 'breakfast', laps: 3, cars: 2, humans: [true, false] });
+  let lights = 0;
+  while (state.phase === 'countdown' && lights++ < MAX) step(state, [0, 0, 0, 0]);
+  const car = state.cars[0];
+  const on = pointAt(state.track.path, 1200);
+  const put = (turn) => {
+    car.x = on.x;
+    car.y = on.y;
+    car.angle = Math.atan2(on.ty, on.tx) + turn;
+    car.vx = Math.cos(car.angle) * 240;
+    car.vy = Math.sin(car.angle) * 240;
+    car.node = on.node;
+    car.along = 1200;
+    car.mode = 'run';
+    return roadDemand(state, 0);
+  };
+  // Measured against how much the road is already asking for here, because
+  // nowhere on a closed loop is perfectly straight: at half a radian either side
+  // of a stretch that already wants 0.30, the two answers are not symmetrical
+  // and one of them lands at -0.89 rather than past -0.9.
+  const level = put(0);
+  check(Math.abs(level) < 0.5, `straight down the road asks for little (${level.toFixed(2)})`);
+  check(put(-0.6) > 0.9, 'pointed one way across it asks for full lock back');
+  check(put(0.6) < -0.9, 'and the other way for full lock the other way');
+  car.mode = 'falling';
+  check(roadDemand(state, 0) === 0, 'and a car that is off the table asks for nothing at all');
 }
 
 // --- The commentator ---------------------------------------------------------
