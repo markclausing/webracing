@@ -383,7 +383,9 @@ function bounceOffWall(state, car, near, limit) {
   if (into > 0) {
     car.vx -= into * nx * (1 + WALL_BOUNCE);
     car.vy -= into * ny * (1 + WALL_BOUNCE);
-    if (into > 60) state.events.push({ type: 'wall', seat: car.index, hard: into });
+    // Said apart from a prop, because a rail and a snooker ball are not the same
+    // noise and, more usefully, because you cannot tune what you cannot count.
+    if (into > 60) state.events.push({ type: 'wall', seat: car.index, hard: into, what: 'edge' });
   }
 }
 
@@ -403,7 +405,9 @@ function props(state, car) {
     if (into < 0) {
       car.vx -= into * nx * (1 + WALL_BOUNCE);
       car.vy -= into * ny * (1 + WALL_BOUNCE);
-      state.events.push({ type: 'wall', seat: car.index, hard: -into });
+      state.events.push({
+        type: 'wall', seat: car.index, hard: -into, what: 'prop', kind: prop.kind,
+      });
     }
   }
 }

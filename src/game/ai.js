@@ -21,6 +21,17 @@ import { nextRandom } from '../util.js';
 
 /** How long a driver holds a line before choosing another one, in ticks. */
 const DRIFT_EVERY = 40;
+/**
+ * How far up the road it starts moving over for something lying in it, and how
+ * hard it leans away.
+ *
+ * Swept over both, twenty-four races each: the force is what matters and the
+ * distance barely moves the needle. At 2.2 the EASY drivers still hit a ball
+ * eighty times a race; at 4.5 that is twenty-six, and the HARD drivers twelve.
+ * Stronger again just makes them swerve.
+ */
+const DODGE_LOOK = 200;
+const DODGE_FORCE = 4.5;
 
 /** Shortest way round from one heading to another, in radians. */
 function wrapAngle(a) {
@@ -55,6 +66,38 @@ function wanted(state, car) {
   }
   void path;
   return best;
+}
+
+/**
+ * How far to move over for whatever is sitting in the road.
+ *
+ * The CPU could see a turbo and another car and nothing else, so a snooker ball
+ * on the racing line was invisible to it: put four of them out on the pool table
+ * and the EASY drivers hit the cushions a hundred and forty times a race,
+ * ricocheting off something they never knew was there. An obstacle only the
+ * player can see does not make a track harder, it makes the opposition worse.
+ *
+ * Returns how far to shift the aim sideways, positive being to the driver's
+ * left. Sharper the closer the thing is, and nothing at all once it is behind.
+ */
+function dodge(state, car) {
+  const cs = Math.cos(car.angle);
+  const sn = Math.sin(car.angle);
+  let push = 0;
+  for (const prop of state.track.props || []) {
+    const dx = prop.x - car.x;
+    const dy = prop.y - car.y;
+    const ahead = dx * cs + dy * sn;
+    if (ahead < 0 || ahead > DODGE_LOOK) continue;
+    const across = -dx * sn + dy * cs;
+    const clear = prop.r + CAR_R + 8;
+    if (Math.abs(across) > clear) continue;
+    // Away from whichever side of the nose it is on, and hardest when it is
+    // nearly under the wheels.
+    const urgency = 1 - ahead / DODGE_LOOK;
+    push -= (clear - Math.abs(across)) * Math.sign(across || 1) * urgency * DODGE_FORCE;
+  }
+  return push;
 }
 
 /**
@@ -146,6 +189,15 @@ export function aiMask(state, car) {
   if (grab) {
     tx = tx * 0.35 + grab.x * 0.65;
     ty = ty * 0.35 + grab.y * 0.65;
+  }
+
+  // Round whatever is lying in the road. Before anything else wants the aim:
+  // a turbo is worth a detour and a rival is worth an elbow, but neither is
+  // worth driving into a snooker ball for.
+  const swerve = dodge(state, car);
+  if (swerve !== 0) {
+    tx += -Math.sin(car.angle) * swerve;
+    ty += Math.cos(car.angle) * swerve;
   }
 
   // Leaning on whoever is alongside. Wound up with the level, and pointed at

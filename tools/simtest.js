@@ -17,7 +17,7 @@ import { aiMask } from '../src/game/ai.js';
 import { TouchDrive } from '../src/touchdrive.js';
 import { ASSIST, blend, roadDemand } from '../src/assist.js';
 import {
-  AI_LEVELS, BOOST_MAX, BOOST_TICKS, BTN, DROP_GAP, SLIP_RANGE, SLIP_WIDTH, TICK_RATE,
+  AI_LEVELS, BOOST_MAX, BOOST_TICKS, BTN, CAR_R, DROP_GAP, SLIP_RANGE, SLIP_WIDTH, TICK_RATE,
 } from '../src/constants.js';
 import {
   Highscores, LEVELS, TIERS, cleanEntry, levelOf, merge, partsOf, placeOf, qualifies, sortTable,
@@ -98,6 +98,52 @@ for (const def of TRACKS) {
   check(path.total > 2500 && path.total < 8000, `${def.key}: a lap is a sensible length`);
 }
 console.log('');
+
+// --- What is lying in the road -----------------------------------------------
+//
+// An obstacle is only worth having if a car can reach it and get past it. Both
+// halves have been wrong at different times: the pool table's pockets sat eight
+// pixels clear of the white line, where EASY and NORMAL never once found one in
+// a whole race, and an earlier set overlapped the road by ten and swallowed cars
+// that had done nothing wrong.
+
+for (const def of TRACKS) {
+  const track = loadTrack(def.key);
+  const room = CAR_R * 2 + 8; // a car, and something to spare
+
+  for (const prop of track.props || []) {
+    const from = Math.abs(prop.off || 0) - prop.r;
+    const to = Math.abs(prop.off || 0) + prop.r;
+    // The clear road down the far side of it, taking the worst case that the
+    // thing is dead centre.
+    const gap = prop.off > 0 ? track.width + (prop.off - prop.r)
+      : track.width + (Math.abs(prop.off) - prop.r);
+    check(gap >= room,
+      `${def.key}: the ${prop.kind} leaves ${Math.round(gap)}px of road beside it`);
+    check(to > 0 && from < track.width + track.shoulder,
+      `${def.key}: and sits somewhere a car can actually get to`);
+  }
+
+  for (const pit of track.pits || []) {
+    const inner = Math.abs(pit.off || 0) - pit.r;
+    check(inner <= track.width,
+      `${def.key}: a pocket reaches the road (${Math.round(track.width - inner)}px onto it)`);
+    check(inner > track.width - 12,
+      `${def.key}: but does not eat it (${Math.round(track.width - inner)}px, 12 is the limit)`);
+  }
+}
+
+// The pool table is the one with things out on the racing line, so it is the one
+// worth saying out loud.
+{
+  const pool = loadTrack('pool');
+  const onRoad = pool.props.filter((p) => Math.abs(p.off) - p.r < pool.width * 0.6);
+  check(onRoad.length === pool.props.length,
+    `every ball on the pool table is out on the road, not against the kerb (${onRoad.length})`);
+  const sides = pool.props.map((p) => Math.sign(p.off)).join('');
+  check(!/(--)|(\+\+)/.test(sides.replace(/1/g, '')) || new Set(sides).size > 1,
+    'and they alternate sides, so the table has to be threaded');
+}
 
 // --- Whole races -------------------------------------------------------------
 

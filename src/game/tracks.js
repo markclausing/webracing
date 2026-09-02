@@ -123,21 +123,29 @@ export const TRACKS = [
     ],
     // The pockets. Set just off the racing line, so they only collect you if you
     // run wide - which is what makes a cushion worth using rather than avoiding.
-    // Just outside the white line, alternating sides: on the road you are safe,
-    // a wheel over it and you are not. Set at 84 they overlapped the road by ten
-    // pixels and swallowed cars that had done nothing wrong.
+    // On the white line, alternating sides. Set eight pixels clear of it they
+    // were scenery: EASY and NORMAL never found one in a whole race, because
+    // nothing that stays on the road ever reaches them. Now a wheel over the
+    // line is a wheel in a pocket, which is what a pool table ought to mean.
+    // Not further in than this: at ten pixels onto the road they swallowed cars
+    // that had done nothing wrong.
     pits: [
-      { at: 0.05, off: 96, r: 38 }, { at: 0.21, off: -96, r: 38 },
-      { at: 0.38, off: 96, r: 38 }, { at: 0.54, off: -96, r: 38 },
-      { at: 0.71, off: 96, r: 38 }, { at: 0.87, off: -96, r: 38 },
+      { at: 0.05, off: 86, r: 38 }, { at: 0.21, off: -86, r: 38 },
+      { at: 0.38, off: 86, r: 38 }, { at: 0.54, off: -86, r: 38 },
+      { at: 0.71, off: 86, r: 38 }, { at: 0.87, off: -86, r: 38 },
     ],
     patches: [
       { at: 0.30, off: 0, r: 58, surface: 'rough', look: 'chalk' },
     ],
+    // And the balls out on the racing surface rather than tucked against the
+    // kerb, alternating sides so the table has to be threaded. Each one leaves
+    // about sixty pixels of clear road down the other side - three car widths -
+    // and the side it leaves is the side away from the next pocket.
     props: [
-      { kind: 'ball', at: 0.14, off: -66, r: 20 },
-      { kind: 'ball', at: 0.46, off: 70, r: 20 },
-      { kind: 'ball', at: 0.79, off: -62, r: 20 },
+      { kind: 'ball', at: 0.13, off: 34, r: 20 },
+      { kind: 'ball', at: 0.31, off: -34, r: 20 },
+      { kind: 'ball', at: 0.62, off: 34, r: 20 },
+      { kind: 'ball', at: 0.80, off: -34, r: 20 },
     ],
     decor: [
       { kind: 'cue', x: 1100, y: 700, a: 0.35, w: 900 },

@@ -432,11 +432,24 @@ export class Sfx {
     this.engine.tone(90 + t * 90, now, 0.1, 'triangle', 0.2 + t * 0.16);
   }
 
-  /** A rail, a cushion, a book: duller than a car, and it rings a little. */
-  wall(hard = 100) {
+  /**
+   * A rail, a cushion, a book: duller than a car, and it rings a little.
+   *
+   * A thing lying in the road is a different noise - short, hard and high, the
+   * click of one ball off another - and the simulation says which is which, so
+   * there is no reason to pretend they sound alike.
+   */
+  wall(hard = 100, prop = false) {
     if (!this.ready()) return;
     const now = this.ctx.currentTime;
     const t = Math.min(1, hard / 320);
+    if (prop) {
+      this.engine.noiseBurst(now, {
+        freq: 2200, q: 3.5, dur: 0.05, level: 0.16 + t * 0.2, sweepTo: 900,
+      });
+      this.engine.tone(420 + t * 260, now, 0.05, 'triangle', 0.12 + t * 0.1);
+      return;
+    }
     this.engine.noiseBurst(now, {
       freq: 320, q: 2.4, dur: 0.16, level: 0.14 + t * 0.16, sweepTo: 120,
     });
@@ -557,7 +570,7 @@ export class Sfx {
           if (e.seat === seat || e.other === seat) this.bump(e.hard);
           break;
         case 'wall':
-          if (e.seat === seat) this.wall(e.hard);
+          if (e.seat === seat) this.wall(e.hard, e.what === 'prop');
           break;
         case 'fall':
         case 'drop':

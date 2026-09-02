@@ -155,7 +155,7 @@ anybody turned a wheel.
 | | | |
 | --- | --- | --- |
 | **The breakfast table** | polished wood, no rails | milk on the fast left-hander, crumbs into two more |
-| **The pool table** | cushions all round | six pockets, just off the racing line |
+| **The pool table** | cushions all round | six pockets on the white line, and four balls out on the racing surface |
 | **The garden path** | wet paving, no rails | mud, puddles, and a lawn that costs you a second |
 | **The desk** | books for barriers | the tightest, with a hairpin round the mug |
 
