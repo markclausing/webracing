@@ -532,3 +532,62 @@ details .keys { margin-top: 0; }
    nothing with class="hidden" was ever actually hidden - the online panel sat
    underneath the one player menu the whole time. */
 .hidden { display: none; }
+
+/* --- The name picker, with something to press ----------------------------
+   The three letters used to be driven only by the game's own stick and its
+   confirm button. On a phone those live at the bottom of the screen and this
+   panel is laid over the top of them at a higher z-index, so the panel swallowed
+   every tap: a score that had been earned arrived at a screen with no way off
+   it, and the only way out was reloading the page.
+
+   So the picker gets arrows and an OK of its own, and the letters themselves are
+   tappable. Shown on every device rather than behind a touch check, because
+   clicking an arrow beats hunting for the arrow keys on a laptop too, and one
+   code path is one thing that can break. */
+
+.picker { margin: 18px 0 6px; }
+
+.letters, .letterRow {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.letters { margin: 0; }
+
+.letter, .panel.small .letterRow button { width: 64px; }
+
+.letter { padding: 6px 0; cursor: pointer; }
+
+/* Big enough to hit with a thumb without looking, which is the whole point. */
+.panel.small .letterRow button {
+  margin: 6px 0;
+  padding: 10px 0;
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* Pause, for a device with no Escape key. Top middle, small and quiet: this is
+   the one control that must never be hit by accident mid-game. */
+#btnPause {
+  position: absolute;
+  left: 50%;
+  top: max(6px, env(safe-area-inset-top));
+  transform: translateX(-50%);
+  width: 46px;
+  height: 34px;
+  padding: 0;
+  pointer-events: auto;
+  touch-action: none;
+  font-size: 13px;
+  font-weight: bold;
+  letter-spacing: 2px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.45);
+  border: 2px solid rgba(255, 225, 77, 0.45);
+}
+
+#btnPause:active { background: #ffe14d; color: #111; }
+
+/* Online there is nothing to pause: the other player is not waiting for you. */
+#touch.online #btnPause { display: none; }

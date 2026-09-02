@@ -22,6 +22,7 @@
     <canvas id="table" tabindex="0"></canvas>
 
     <div id="touch" class="hidden">
+      <button id="btnPause" type="button" aria-label="Pause">II</button>
       <div id="stick" aria-label="Steering"><div id="wheelTrack"><div id="knob"></div></div></div>
       <div id="touchButtons">
         <button id="btnGas" type="button">GAS</button>
@@ -177,10 +178,15 @@
       <div class="panel small">
         <h2>LAP RECORD</h2>
         <p id="hiscoreLine" class="status"></p>
-        <div id="hiscoreLetters" class="letters"></div>
+        <div class="picker">
+          <div id="hiscoreUp" class="letterRow"></div>
+          <div id="hiscoreLetters" class="letters"></div>
+          <div id="hiscoreDown" class="letterRow"></div>
+        </div>
+        <button id="hiscoreOk" class="primary">OK</button>
         <p class="fineprint">
-          Up and down for the letter, left and right to move along, gas to confirm.
-          Typing works too.
+          Tap the arrows, or use the stick: up and down for the letter, left
+          and right to move along, gas to confirm. Typing works too.
         </p>
       </div>
     </div>
@@ -188,8 +194,9 @@
     <div id="pause" class="overlay hidden">
       <div class="panel small">
         <h2>PAUSED</h2>
-        <p class="status">Esc to carry on.</p>
-        <button id="quit" class="primary">BACK TO THE MENU</button>
+        <p class="status">Esc to carry on, or press resume.</p>
+        <button id="resume" class="primary">RESUME</button>
+        <button id="quit">BACK TO THE MENU</button>
       </div>
     </div>
 
